@@ -1,25 +1,26 @@
-/** @type {import('jest').Config} */
-const customJestConfig = {
+module.exports = {
+  testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testMatch: [
-    '**/*.test.ts',
-    '**/*.test.tsx',
-  ],
-  collectCoverageFrom: [
-    'app/**/*.{ts,tsx}',
-    '!app/**/*.d.ts',
+    '**/__tests__/**/*.test.(js|jsx|ts|tsx)',
   ],
   transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: {
-        jsx: 'react-jsx',
-      },
-    }],
+    '^.+\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
-}
-
-module.exports = customJestConfig
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx'],
+  collectCoverageFrom: [
+    'lib/**/*.{js,jsx,ts,tsx}',
+    '!lib/**/*.d.ts',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
+};
