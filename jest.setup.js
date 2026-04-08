@@ -1,4 +1,4 @@
-import '@testing-library/jest-dom'
+require('@testing-library/jest-dom')
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
@@ -37,6 +37,33 @@ jest.mock('next/headers', () => ({
 
 // Global fetch mock
 global.fetch = jest.fn()
+
+// Polyfill Request/Response for Next.js API tests
+global.Request = class Request {
+  constructor(url, init = {}) {
+    this.url = url
+    this.method = init.method || 'GET'
+    this.headers = new Map(Object.entries(init.headers || {}))
+    this.body = init.body || null
+  }
+  json() {
+    return Promise.resolve(JSON.parse(this.body || '{}'))
+  }
+}
+
+global.Response = class Response {
+  constructor(body, init = {}) {
+    this.body = body
+    this.status = init.status || 200
+    this.headers = new Map(Object.entries(init.headers || {}))
+  }
+  json() {
+    return Promise.resolve(typeof this.body === 'string' ? JSON.parse(this.body) : this.body)
+  }
+  static json(data, init = {}) {
+    return new Response(JSON.stringify(data), { ...init, headers: { 'Content-Type': 'application/json', ...init.headers } })
+  }
+}
 
 // Console error suppression for expected errors
 const originalConsoleError = console.error
