@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { AuthProvider } '@/lib/hooks/useAuth';
+import { AuthProvider } from '@/lib/hooks/useAuth';
 
 export const metadata: Metadata = {
   title: 'AI分身市场 - 你的AI分身，创造价值',

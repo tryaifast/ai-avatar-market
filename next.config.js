@@ -7,9 +7,8 @@ const nextConfig = {
   },
   swcMinify: false,
   trailingSlash: true,
-  // GitHub Pages 配置
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/ai-avatar-market' : '',
-  basePath: process.env.NODE_ENV === 'production' ? '/ai-avatar-market' : '',
+  assetPrefix: '.',
+  basePath: '',
 }
 
 module.exports = nextConfig

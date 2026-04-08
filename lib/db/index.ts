@@ -259,11 +259,12 @@ export const TaskDB = {
 // ============================================
 export const MessageDB = {
   getByTask(taskId: string): Message[] {
-    return readData(FILES.messages, []).filter(m => m.taskId === taskId);
+    const messages: Message[] = readData(FILES.messages, []);
+    return messages.filter(m => m.taskId === taskId);
   },
   
   create(message: Omit<Message, 'id' | 'timestamp'>): Message {
-    const messages = readData(FILES.messages, []);
+    const messages: Message[] = readData(FILES.messages, []);
     const newMessage: Message = {
       ...message,
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -280,17 +281,19 @@ export const MessageDB = {
 // ============================================
 export const ReviewDB = {
   getByTask(taskId: string): Review | undefined {
-    return readData(FILES.reviews, []).find(r => r.taskId === taskId);
+    const reviews: Review[] = readData(FILES.reviews, []);
+    return reviews.find(r => r.taskId === taskId);
   },
   
   getByTarget(targetId: string, targetType: 'avatar' | 'client'): Review[] {
-    return readData(FILES.reviews, []).filter(r => 
+    const reviews: Review[] = readData(FILES.reviews, []);
+    return reviews.filter(r => 
       r.targetId === targetId && r.targetType === targetType
     );
   },
   
   create(review: Omit<Review, 'id' | 'createdAt'>): Review {
-    const reviews = readData(FILES.reviews, []);
+    const reviews: Review[] = readData(FILES.reviews, []);
     const newReview: Review = {
       ...review,
       id: `review_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -307,7 +310,8 @@ export const ReviewDB = {
 // ============================================
 export const NotificationDB = {
   getByUser(userId: string): Notification[] {
-    return readData(FILES.notifications, [])
+    const notifications: Notification[] = readData(FILES.notifications, []);
+    return notifications
       .filter(n => n.userId === userId)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
@@ -317,7 +321,7 @@ export const NotificationDB = {
   },
   
   create(notification: Omit<Notification, 'id' | 'createdAt'>): Notification {
-    const notifications = readData(FILES.notifications, []);
+    const notifications: Notification[] = readData(FILES.notifications, []);
     const newNotification: Notification = {
       ...notification,
       id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -329,7 +333,7 @@ export const NotificationDB = {
   },
   
   markAsRead(id: string): void {
-    const notifications = readData(FILES.notifications, []);
+    const notifications: Notification[] = readData(FILES.notifications, []);
     const index = notifications.findIndex(n => n.id === id);
     if (index !== -1) {
       notifications[index].read = true;
