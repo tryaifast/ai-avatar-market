@@ -25,10 +25,16 @@ export default function LoginPage() {
         body: JSON.stringify({ action: 'login', email, password }),
       });
 
+      // 检查Content-Type，确保返回的是JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('服务器返回格式错误，请稍后重试');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || '登录失败');
+        throw new Error(data.error || `登录失败 (${response.status})`);
       }
 
       // 保存 token
@@ -38,7 +44,7 @@ export default function LoginPage() {
       // 跳转到首页
       router.push('/');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || '网络错误，请检查连接');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/hooks/useAuth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'AI分身市场 - 你的AI分身，创造价值',
@@ -16,7 +17,9 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body className="min-h-screen bg-gray-50">
         <AuthProvider>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </AuthProvider>
       </body>
     </html>

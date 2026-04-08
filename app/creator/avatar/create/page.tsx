@@ -52,6 +52,18 @@ export default function CreateAvatarPage() {
   const [newExpertise, setNewExpertise] = useState('');
   const [newCanDo, setNewCanDo] = useState('');
   const [newCannotDo, setNewCannotDo] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -203,13 +215,24 @@ export default function CreateAvatarPage() {
                   头像
                 </label>
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center">
-                    <Bot className="w-10 h-10 text-white" />
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center overflow-hidden">
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <Bot className="w-10 h-10 text-white" />
+                    )}
                   </div>
-                  <button className="btn-secondary text-sm">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <label htmlFor="avatar-upload" className="btn-secondary text-sm cursor-pointer">
                     <Upload className="w-4 h-4 mr-2" />
                     上传头像
-                  </button>
+                  </label>
                 </div>
               </div>
 
