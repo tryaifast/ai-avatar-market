@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { 
   TrendingUp, Clock, CheckCircle, AlertCircle, ChevronRight,
-  Plus, Star, DollarSign
+  Plus, Star, DollarSign, ArrowLeft
 } from 'lucide-react';
 
 // 模拟数据
@@ -77,17 +77,30 @@ export default function CreatorDashboard() {
     <div className="p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">创作者中心</h1>
-          <p className="text-gray-600 mt-1">管理你的AI分身，查看收益和任务</p>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-gray-500 hover:text-gray-700" title="返回首页">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">创作者中心</h1>
+            <p className="text-gray-600 mt-1">管理你的AI分身，查看收益和任务</p>
+          </div>
         </div>
-        <Link
-          href="/creator/avatar/create"
-          className="btn-primary"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          创建新分身
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/creator/avatars"
+            className="btn-secondary"
+          >
+            我的分身
+          </Link>
+          <Link
+            href="/creator/avatar/create"
+            className="btn-primary"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            创建新分身
+          </Link>
+        </div>
       </div>
 
       {/* Stats Grid */}

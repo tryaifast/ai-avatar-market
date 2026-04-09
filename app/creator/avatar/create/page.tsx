@@ -77,11 +77,18 @@ export default function CreateAvatarPage() {
     }
   };
 
+  const [showSuccess, setShowSuccess] = useState(false);
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
-    router.push('/creator/dashboard');
+    setIsSubmitting(false);
+    setShowSuccess(true);
+    // 3秒后跳转到我的分身页面
+    setTimeout(() => {
+      router.push('/creator/avatars');
+    }, 3000);
   };
 
   const addExpertise = () => {
@@ -140,8 +147,12 @@ export default function CreateAvatarPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link href="/creator/dashboard" className="text-gray-500 hover:text-gray-700">
+              <Link href="/" className="text-gray-500 hover:text-gray-700" title="返回首页">
                 <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div className="w-px h-5 bg-gray-300" />
+              <Link href="/creator/dashboard" className="text-gray-500 hover:text-gray-700">
+                <span className="text-sm">创作者中心</span>
               </Link>
               <h1 className="text-lg font-semibold text-gray-900">创建AI分身</h1>
             </div>
@@ -368,14 +379,64 @@ export default function CreateAvatarPage() {
                 </p>
               </div>
 
+              {/* 引导按钮 */}
+              <div className="flex justify-end">
+                <Link 
+                  href="/creator/training-guide" 
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  我没有现成资料？查看训练方案
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   SOUL.md（人格定义）
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-1">点击或拖拽上传 SOUL.md</p>
-                  <p className="text-xs text-gray-400">定义你的价值观、沟通风格、行为准则</p>
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('soul-upload')?.click()}
+                >
+                  <input
+                    type="file"
+                    accept=".md,.txt"
+                    className="hidden"
+                    id="soul-upload"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData({
+                          ...formData,
+                          memoryFiles: { ...formData.memoryFiles, soul: file }
+                        });
+                      }
+                    }}
+                  />
+                  {formData.memoryFiles.soul ? (
+                    <div className="flex items-center justify-center gap-2 text-green-600">
+                      <CheckCircle className="w-6 h-6" />
+                      <span>{formData.memoryFiles.soul.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData({
+                            ...formData,
+                            memoryFiles: { ...formData.memoryFiles, soul: null }
+                          });
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-1">点击或拖拽上传 SOUL.md</p>
+                      <p className="text-xs text-gray-400">定义你的价值观、沟通风格、行为准则</p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -383,10 +444,49 @@ export default function CreateAvatarPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   MEMORY.md（长期记忆）
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-1">点击或拖拽上传 MEMORY.md</p>
-                  <p className="text-xs text-gray-400">记录你的知识、经验、偏好</p>
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('memory-upload')?.click()}
+                >
+                  <input
+                    type="file"
+                    accept=".md,.txt"
+                    className="hidden"
+                    id="memory-upload"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setFormData({
+                          ...formData,
+                          memoryFiles: { ...formData.memoryFiles, memory: file }
+                        });
+                      }
+                    }}
+                  />
+                  {formData.memoryFiles.memory ? (
+                    <div className="flex items-center justify-center gap-2 text-green-600">
+                      <CheckCircle className="w-6 h-6" />
+                      <span>{formData.memoryFiles.memory.name}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData({
+                            ...formData,
+                            memoryFiles: { ...formData.memoryFiles, memory: null }
+                          });
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-1">点击或拖拽上传 MEMORY.md</p>
+                      <p className="text-xs text-gray-400">记录你的知识、经验、偏好</p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -394,10 +494,60 @@ export default function CreateAvatarPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   历史对话记录（可选）
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600 mb-1">上传历史对话导出文件</p>
-                  <p className="text-xs text-gray-400">帮助分身学习你的对话风格和思维方式</p>
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                  onClick={() => document.getElementById('history-upload')?.click()}
+                >
+                  <input
+                    type="file"
+                    accept=".md,.txt,.json"
+                    multiple
+                    className="hidden"
+                    id="history-upload"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length > 0) {
+                        setFormData({
+                          ...formData,
+                          memoryFiles: { 
+                            ...formData.memoryFiles, 
+                            history: [...formData.memoryFiles.history, ...files]
+                          }
+                        });
+                      }
+                    }}
+                  />
+                  {formData.memoryFiles.history.length > 0 ? (
+                    <div className="space-y-2">
+                      {formData.memoryFiles.history.map((file, index) => (
+                        <div key={index} className="flex items-center justify-center gap-2 text-green-600">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm">{file.name}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFormData({
+                                ...formData,
+                                memoryFiles: { 
+                                  ...formData.memoryFiles, 
+                                  history: formData.memoryFiles.history.filter((_, i) => i !== index)
+                                }
+                              });
+                            }}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm text-gray-600 mb-1">上传历史对话导出文件</p>
+                      <p className="text-xs text-gray-400">帮助分身学习你的对话风格和思维方式</p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -689,6 +839,27 @@ export default function CreateAvatarPage() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center animate-in fade-in zoom-in">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              分身创建成功！
+            </h3>
+            <p className="text-gray-600 mb-6">
+              你的AI分身 "{formData.name}" 已创建成功，正在跳转到我的分身页面...
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              正在跳转
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

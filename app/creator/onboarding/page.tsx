@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/lib/store';
 import { 
   Sparkles, Shield, TrendingUp, Users, ArrowRight, 
-  CheckCircle, Clock, DollarSign, Bot
+  CheckCircle, Clock, DollarSign, Bot, ArrowLeft
 } from 'lucide-react';
 
 const benefits = [
@@ -92,10 +92,16 @@ export default function OnboardingPage() {
       <header className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/creator/dashboard" className="flex items-center gap-2">
-              <Bot className="w-7 h-7 text-blue-600" />
-              <span className="text-lg font-bold">AI分身市场</span>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-gray-500 hover:text-gray-700 flex items-center gap-2" title="返回首页">
+                <ArrowLeft className="w-5 h-5" />
+                <span className="text-sm">首页</span>
+              </Link>
+              <Link href="/creator/dashboard" className="flex items-center gap-2 ml-4">
+                <Bot className="w-7 h-7 text-blue-600" />
+                <span className="text-lg font-bold">AI分身市场</span>
+              </Link>
+            </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-500">入驻状态:</span>
               {getStatusBadge()}

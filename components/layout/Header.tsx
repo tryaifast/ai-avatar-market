@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Bot, User, LogOut } from 'lucide-react';
+import { Bot, User, LogOut, Shield, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   return (
     <header className="bg-white border-b">
@@ -25,6 +27,35 @@ export default function Header() {
             <Link href="/creator/dashboard" className="text-gray-600 hover:text-gray-900">
               创作者中心
             </Link>
+            
+            {/* Admin Entry */}
+            <div className="relative">
+              <button
+                onClick={() => setShowAdminMenu(!showAdminMenu)}
+                className="flex items-center gap-1 text-gray-600 hover:text-gray-900"
+              >
+                <Shield className="w-4 h-4" />
+                管理后台
+                <ChevronDown className={`w-4 h-4 transition-transform ${showAdminMenu ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {showAdminMenu && (
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                  <Link 
+                    href="/admin/login" 
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowAdminMenu(false)}
+                  >
+                    <Shield className="w-4 h-4" />
+                    管理员登录
+                  </Link>
+                  <div className="border-t my-1" />
+                  <div className="px-4 py-2 text-xs text-gray-400">
+                    仅限管理员访问
+                  </div>
+                </div>
+              )}
+            </div>
             
             {user ? (
               <div className="flex items-center gap-4">

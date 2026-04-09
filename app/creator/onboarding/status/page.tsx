@@ -53,10 +53,16 @@ export default function OnboardingStatusPage() {
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="flex items-center h-16">
-            <Link href="/creator/onboarding" className="text-gray-500 hover:text-gray-700 mr-4">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-lg font-semibold text-gray-900">入驻状态</h1>
+            <div className="flex items-center gap-4">
+              <Link href="/" className="text-gray-500 hover:text-gray-700" title="返回首页">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div className="w-px h-5 bg-gray-300" />
+              <Link href="/creator/onboarding" className="text-gray-500 hover:text-gray-700">
+                <ArrowLeft className="w-5 h-5 rotate-180" />
+              </Link>
+            </div>
+            <h1 className="text-lg font-semibold text-gray-900 ml-4">入驻状态</h1>
           </div>
         </div>
       </header>
