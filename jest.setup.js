@@ -1,5 +1,20 @@
 import '@testing-library/jest-dom';
 
+// Suppress React 18 act() warnings
+const originalError = console.error;
+beforeAll(() => {
+  console.error = (...args) => {
+    if (/Warning.*not wrapped in act/.test(args[0])) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
+
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter() {
@@ -22,7 +37,7 @@ jest.mock('next/navigation', () => ({
 
 // Mock next/link
 jest.mock('next/link', () => {
-  return ({ children, ...rest }) => {
-    return <a {...rest}>{children}</a>;
+  return ({ children, href, ...rest }) => {
+    return <a href={href} {...rest}>{children}</a>;
   };
 });
