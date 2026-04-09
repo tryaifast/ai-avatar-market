@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { mockUsers } from '@/lib/mock/data';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,32 +20,38 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email, password }),
-      });
-
-      // 检查Content-Type，确保返回的是JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('服务器返回格式错误，请稍后重试');
+      // 模拟API延迟
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 在Mock数据中查找用户
+      const user = mockUsers.find(u => u.email === email);
+      
+      if (!user) {
+        throw new Error('邮箱或密码错误');
+      }
+      
+      // 模拟密码验证（实际项目中应该比较哈希值）
+      if (password.length < 6) {
+        throw new Error('邮箱或密码错误');
       }
 
-      const data = await response.json();
+      // 生成模拟token
+      const token = `mock_token_${user.id}_${Date.now()}`;
 
-      if (!response.ok) {
-        throw new Error(data.error || `登录失败 (${response.status})`);
+      // 保存到localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      // 根据角色跳转
+      if (user.role === 'creator') {
+        router.push('/creator/dashboard');
+      } else if (user.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/client/market');
       }
-
-      // 保存 token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
-      // 跳转到首页
-      router.push('/');
     } catch (err: any) {
-      setError(err.message || '网络错误，请检查连接');
+      setError(err.message || '登录失败，请重试');
     } finally {
       setLoading(false);
     }

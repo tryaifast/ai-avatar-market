@@ -33,32 +33,31 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', email, password, name }),
-      });
+      // 模拟API延迟
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // 生成新用户
+      const newUser = {
+        id: `user_${Date.now()}`,
+        email,
+        name,
+        role: 'client' as const,
+        isVerified: false,
+        onboardingStatus: 'pending' as const,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
 
-      // 检查Content-Type，确保返回的是JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('服务器返回格式错误，请稍后重试');
-      }
+      // 生成模拟token
+      const token = `mock_token_${newUser.id}_${Date.now()}`;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `注册失败 (${response.status})`);
-      }
-
-      // 保存 token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // 保存到localStorage
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(newUser));
 
       // 跳转到首页
-      router.push('/');
+      router.push('/client/market');
     } catch (err: any) {
-      setError(err.message || '网络错误，请检查连接');
+      setError(err.message || '注册失败，请重试');
     } finally {
       setLoading(false);
     }
