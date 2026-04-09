@@ -225,43 +225,89 @@ export default function WorkspacePage() {
         )}
 
         {activeTab === 'chat' && (
-          <div className="card h-[600px]">
+          <div className="card" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
             <div className="h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">与 {project.avatar.name} AI分身对话</h3>
-                <span className="text-sm text-green-600 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full" /> 在线
+              <div className="flex items-center justify-between mb-4 pb-4 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-lg">
+                    👨‍💼
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">与 {project.avatar.name} AI分身对话</h3>
+                    <span className="text-xs text-gray-500">项目: {project.name}</span>
+                  </div>
+                </div>
+                <span className="text-sm text-green-600 flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full">
+                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" /> 在线
                 </span>
               </div>
               
-              <div className="flex-1 bg-gray-50 rounded-lg p-4 overflow-y-auto mb-4">
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="avatar avatar-sm">👨‍💼</div>
-                    <div className="bg-white rounded-lg p-3 max-w-[80%]">
-                      <p className="text-sm">您好！我是张明AI分身。我已了解您的项目需求，请问有什么我可以帮助您的？</p>
-                      <span className="text-xs text-gray-400 mt-1">10:30</span>
-                    </div>
+              <div className="flex-1 bg-gray-50 rounded-lg p-4 overflow-y-auto mb-4 space-y-4">
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
+                    👨‍💼
                   </div>
-                  
-                  <div className="flex gap-3 justify-end">
-                    <div className="bg-blue-600 text-white rounded-lg p-3 max-w-[80%]">
-                      <p className="text-sm">我想了解一下竞品分析的思路</p>
-                      <span className="text-xs text-blue-200 mt-1">10:32</span>
-                    </div>
+                  <div className="bg-white rounded-lg p-3 max-w-[80%] shadow-sm">
+                    <p className="text-sm text-gray-800">您好！我是张明AI分身。我已了解您的项目需求，请问有什么我可以帮助您的？</p>
+                    <span className="text-xs text-gray-400 mt-1 block">10:30</span>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 justify-end">
+                  <div className="bg-blue-600 text-white rounded-lg p-3 max-w-[80%] shadow-sm">
+                    <p className="text-sm">我想了解一下竞品分析的思路</p>
+                    <span className="text-xs text-blue-200 mt-1 block">10:32</span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
+                    👨‍💼
+                  </div>
+                  <div className="bg-white rounded-lg p-3 max-w-[80%] shadow-sm">
+                    <p className="text-sm text-gray-800">好的，竞品分析一般包括以下几个步骤：</p>
+                    <ol className="text-sm text-gray-700 mt-2 space-y-1 list-decimal list-inside">
+                      <li>确定竞品范围（直接/间接/潜在）</li>
+                      <li>收集竞品信息（功能、定价、用户评价）</li>
+                      <li>分析优劣势（SWOT分析）</li>
+                      <li>总结差异化机会</li>
+                    </ol>
+                    <p className="text-sm text-gray-800 mt-2">您希望我针对哪个方面详细展开？</p>
+                    <span className="text-xs text-gray-400 mt-1 block">10:33</span>
                   </div>
                 </div>
               </div>
               
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="input flex-1"
-                  placeholder="输入消息..."
-                />
-                <button className="btn btn-primary">
-                  发送
-                </button>
+              <div className="border-t pt-4">
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1 relative">
+                    <textarea
+                      className="w-full p-3 pr-12 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={2}
+                      placeholder="输入消息，按Enter发送..."
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          // 发送消息逻辑
+                        }
+                      }}
+                    />
+                    <button className="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </button>
+                  </div>
+                  <button 
+                    className="btn btn-primary px-6 py-3 h-fit"
+                    onClick={() => {
+                      alert('消息已发送！');
+                    }}
+                  >
+                    发送
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 text-center">AI分身会尽快回复您的消息</p>
               </div>
             </div>
           </div>

@@ -57,6 +57,10 @@ export default function AdminDashboardPage() {
               <span>🤖</span>
               <span>分身管理</span>
             </Link>
+            <Link href="/admin/orders" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+              <span>📦</span>
+              <span>订单管理</span>
+            </Link>
             <Link href="/admin/reviews" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
               <span>✅</span>
               <span>审核管理</span>
@@ -138,9 +142,14 @@ export default function AdminDashboardPage() {
                     ✅ 处理入驻申请 ({stats.pendingReviews})
                   </button>
                 </Link>
+                <Link href="/admin/orders">
+                  <button className="btn w-full justify-start">
+                    📦 查看订单列表
+                  </button>
+                </Link>
                 <Link href="/admin/users">
                   <button className="btn w-full justify-start">
-                    👥 查看用户列表
+                    👥 管理用户
                   </button>
                 </Link>
                 <Link href="/admin/avatars">

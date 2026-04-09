@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { addMockUser } from '@/lib/mock/data';
+import { addMockUser, mockUsers } from '@/lib/mock/data';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,6 +15,54 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 风控检查函数
+  const checkEmailExists = (email: string): boolean => {
+    return mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
+  };
+
+  const checkDeviceLimit = (): { allowed: boolean; message?: string } => {
+    const deviceKey = 'device_registrations';
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 获取设备注册记录
+    const stored = localStorage.getItem(deviceKey);
+    let records: { date: string; count: number } = stored 
+      ? JSON.parse(stored) 
+      : { date: today, count: 0 };
+    
+    // 如果日期不同，重置计数
+    if (records.date !== today) {
+      records = { date: today, count: 0 };
+    }
+    
+    // 检查是否超过每日限制（3次）
+    if (records.count >= 3) {
+      return { 
+        allowed: false, 
+        message: '本设备今日注册次数已达上限（3次），请明天再试' 
+      };
+    }
+    
+    return { allowed: true };
+  };
+
+  const recordDeviceRegistration = () => {
+    const deviceKey = 'device_registrations';
+    const today = new Date().toISOString().split('T')[0];
+    
+    const stored = localStorage.getItem(deviceKey);
+    let records: { date: string; count: number } = stored 
+      ? JSON.parse(stored) 
+      : { date: today, count: 0 };
+    
+    if (records.date !== today) {
+      records = { date: today, count: 0 };
+    }
+    
+    records.count += 1;
+    localStorage.setItem(deviceKey, JSON.stringify(records));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +76,19 @@ export default function RegisterPage() {
 
     if (password.length < 6) {
       setError('密码长度至少为6位');
+      return;
+    }
+
+    // 风控1: 检查邮箱是否已注册
+    if (checkEmailExists(email)) {
+      setError('该邮箱已注册，请直接登录');
+      return;
+    }
+
+    // 风控2: 检查设备注册限制
+    const deviceCheck = checkDeviceLimit();
+    if (!deviceCheck.allowed) {
+      setError(deviceCheck.message || '注册受限');
       return;
     }
 
@@ -50,6 +111,9 @@ export default function RegisterPage() {
 
       // 添加到mockUsers（这样后续登录才能找到）
       addMockUser(newUser);
+
+      // 记录设备注册次数（风控）
+      recordDeviceRegistration();
 
       // 生成模拟token
       const token = `mock_token_${newUser.id}_${Date.now()}`;

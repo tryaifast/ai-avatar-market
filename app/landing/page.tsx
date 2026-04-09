@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useAuth } from '@/lib/hooks/useAuth';
+import { User, LogOut } from 'lucide-react';
 
 // 首页 Landing Page
 export default function LandingPage() {
+  const { user, logout } = useAuth();
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -14,11 +18,35 @@ export default function LandingPage() {
             <div className="flex items-center gap-6">
               <Link href="/client/market" className="hover:text-blue-200">浏览市场</Link>
               <Link href="/creator/onboarding" className="hover:text-blue-200">成为创作者</Link>
-              <Link href="/auth/login">
-                <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50">
-                  登录 / 注册
-                </button>
-              </Link>
+              
+              {user ? (
+                // 已登录显示用户头像和菜单
+                <div className="flex items-center gap-4">
+                  <Link 
+                    href={user.role === 'creator' ? '/creator/dashboard' : '/client/market'}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium">{user.name}</span>
+                  </Link>
+                  <button 
+                    onClick={logout}
+                    className="text-white/80 hover:text-white"
+                    title="退出登录"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                // 未登录显示登录/注册按钮
+                <Link href="/auth/login">
+                  <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50">
+                    登录 / 注册
+                  </button>
+                </Link>
+              )}
             </div>
           </nav>
           
