@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bot, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { mockUsers } from '@/lib/mock/data';
 
 export default function LoginPage() {
@@ -59,6 +59,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      {/* Back to Home */}
+      <Link 
+        href="/" 
+        className="fixed top-4 left-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow-sm"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        返回首页
+      </Link>
+
       <div className="max-w-md w-full space-y-8">
         {/* Logo */}
         <div className="text-center">

@@ -14,10 +14,16 @@ const mockAvatars = [
     name: '代码审查助手·小明',
     description: '专注前端代码审查，熟悉React/Vue/TypeScript。帮你发现潜在bug，优化代码结构。',
     avatar: '/avatars/1.png',
+    creatorId: 'creator_1',
     creator: {
+      id: 'creator_1',
       name: '张明',
       identity: ['程序员'],
       avatar: '/avatars/creator1.png',
+      bio: '10年前端开发经验，曾就职于阿里巴巴、字节跳动。擅长前端架构设计和性能优化。',
+      rating: 4.9,
+      totalHires: 320,
+      reviewCount: 156,
     },
     personality: {
       expertise: ['前端开发', '代码审查', '性能优化'],
@@ -38,10 +44,16 @@ const mockAvatars = [
     name: '产品经理·Lisa',
     description: '10年产品经验，擅长需求分析、PRD撰写、竞品分析。帮你理清产品思路。',
     avatar: '/avatars/2.png',
+    creatorId: 'creator_2',
     creator: {
+      id: 'creator_2',
       name: '李莎',
       identity: ['产品经理'],
       avatar: '/avatars/creator2.png',
+      bio: '前腾讯高级产品经理，主导过多款千万级用户产品。擅长从0到1的产品设计和用户增长。',
+      rating: 4.8,
+      totalHires: 280,
+      reviewCount: 134,
     },
     personality: {
       expertise: ['需求分析', 'PRD撰写', '竞品分析'],
@@ -62,10 +74,16 @@ const mockAvatars = [
     name: '文案策划·阿文',
     description: '资深文案，擅长品牌文案、社交媒体内容、广告创意。让你的内容更有传播力。',
     avatar: '/avatars/3.png',
+    creatorId: 'creator_3',
     creator: {
+      id: 'creator_3',
       name: '王文',
       identity: ['运营'],
       avatar: '/avatars/creator3.png',
+      bio: '8年品牌运营经验，服务过50+知名品牌。擅长爆款内容策划和社媒运营。',
+      rating: 4.7,
+      totalHires: 450,
+      reviewCount: 289,
     },
     personality: {
       expertise: ['品牌文案', '社媒运营', '创意策划'],
@@ -86,10 +104,16 @@ const mockAvatars = [
     name: '数据分析·DataPro',
     description: '数据分析师，精通SQL/Python/Excel。帮你从数据中发现洞察，做出数据驱动决策。',
     avatar: '/avatars/4.png',
+    creatorId: 'creator_4',
     creator: {
+      id: 'creator_4',
       name: '陈数',
       identity: ['数据分析师'],
       avatar: '/avatars/creator4.png',
+      bio: '数学博士，曾任职于美团、京东数据分析部门。专注用户行为分析和商业智能。',
+      rating: 4.9,
+      totalHires: 180,
+      reviewCount: 98,
     },
     personality: {
       expertise: ['数据分析', 'SQL', 'Python', '可视化'],
@@ -110,10 +134,16 @@ const mockAvatars = [
     name: '法律顾问·正义',
     description: '执业律师，专注合同法、知识产权、劳动法。为你提供专业的法律建议。',
     avatar: '/avatars/5.png',
+    creatorId: 'creator_5',
     creator: {
+      id: 'creator_5',
       name: '刘正',
       identity: ['律师'],
       avatar: '/avatars/creator5.png',
+      bio: '执业15年，曾任职于金杜律师事务所。擅长企业法务、知识产权保护和劳动纠纷处理。',
+      rating: 4.8,
+      totalHires: 220,
+      reviewCount: 145,
     },
     personality: {
       expertise: ['合同法', '知识产权', '劳动法'],
@@ -134,10 +164,16 @@ const mockAvatars = [
     name: 'UI设计·Pixel',
     description: 'UI/UX设计师，擅长移动端和Web设计。帮你做出美观且易用的界面。',
     avatar: '/avatars/6.png',
+    creatorId: 'creator_6',
     creator: {
+      id: 'creator_6',
       name: '赵艺',
       identity: ['设计师'],
       avatar: '/avatars/creator6.png',
+      bio: '前Apple设计师，专注于用户体验设计。作品获得多项国际设计大奖。',
+      rating: 4.9,
+      totalHires: 350,
+      reviewCount: 198,
     },
     personality: {
       expertise: ['UI设计', 'UX设计', 'Figma', '原型设计'],
@@ -309,7 +345,7 @@ export default function MarketPage() {
                     )}
                   </div>
                   <Link
-                    href={`/client/hire/${avatar.id}`}
+                    href={`/client/creator/${avatar.creatorId}`}
                     className="btn-primary text-sm"
                   >
                     雇佣

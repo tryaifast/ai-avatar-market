@@ -8,7 +8,7 @@ import { User } from '@/lib/store';
 // 1. 用户数据
 // ============================================
 
-export const mockUsers: User[] = [
+export let mockUsers: User[] = [
   {
     id: '1',
     email: 'creator@example.com',
@@ -37,6 +37,11 @@ export const mockUsers: User[] = [
     createdAt: '2024-01-01',
   },
 ];
+
+// 添加新用户到mockUsers
+export function addMockUser(user: User) {
+  mockUsers.push(user);
+}
 
 // ============================================
 // 2. AI分身数据
