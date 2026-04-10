@@ -431,3 +431,33 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
     }
   },
 }));
+
+// ============================================
+// App Store - 综合应用状态（兼容旧代码）
+// ============================================
+interface AppState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  
+  // Actions
+  setUser: (user: User | null) => void;
+  logout: () => void;
+}
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      
+      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      logout: () => set({ user: null, isAuthenticated: false }),
+    }),
+    {
+      name: 'app-storage',
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+    }
+  )
+);
