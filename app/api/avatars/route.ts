@@ -1,81 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { DB } from '@/lib/db';
-import { verifyAuth } from '@/lib/auth';
+// ============================================
+// Avatars API Routes
+// ============================================
 
-// 获取分身列表
-export async function GET(request: NextRequest) {
+import { NextRequest, NextResponse } from 'next/server';
+import { DB } from '@/lib/db/supabase';
+
+// GET /api/avatars - 获取所有激活的分身
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
-    const identity = searchParams.get('identity') || '';
-    
-    // 获取活跃的分身列表
-    let avatars = DB.Avatar.getActive();
-    
-    // 搜索过滤
+
+    let avatars;
     if (query) {
-      avatars = DB.Avatar.search(query);
+      avatars = await DB.Avatar.search(query);
+    } else {
+      avatars = await DB.Avatar.getActive();
     }
-    
-    // 身份过滤
-    if (identity) {
-      const users = DB.User.getAll();
-      const creatorIds = users
-        .filter(u => u.identity.includes(identity as any))
-        .map(u => u.id);
-      avatars = avatars.filter(a => creatorIds.includes(a.creatorId));
-    }
-    
-    // 获取创作者信息
-    const avatarsWithCreator = avatars.map(avatar => {
-      const creator = DB.User.getById(avatar.creatorId);
-      return {
-        ...avatar,
-        creator: creator ? {
-          id: creator.id,
-          name: creator.name,
-          avatar: creator.avatar,
-          identity: creator.identity,
-        } : null,
-      };
+
+    return NextResponse.json({
+      success: true,
+      avatars,
     });
-    
-    return NextResponse.json({ avatars: avatarsWithCreator });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Get avatars error:', error);
     return NextResponse.json(
-      { error: '服务器错误' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-// 创建分身
-export async function POST(request: NextRequest) {
+// POST /api/avatars - 创建新分身
+export async function POST(req: NextRequest) {
   try {
-    // 验证用户
-    const auth = await verifyAuth(request);
-    if (!auth) {
-      return NextResponse.json(
-        { error: '未授权' },
-        { status: 401 }
-      );
-    }
-    
-    const data = await request.json();
-    
-    // 创建分身
-    const avatar = DB.Avatar.create({
-      ...data,
-      creatorId: auth.userId,
-      status: 'active',
+    const data = await req.json();
+
+    const avatar = await DB.Avatar.create(data);
+
+    return NextResponse.json({
+      success: true,
+      avatar,
     });
-    
-    return NextResponse.json({ avatar });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create avatar error:', error);
     return NextResponse.json(
-      { error: '服务器错误' },
+      { error: error.message || 'Internal server error' },
       { status: 500 }
     );
   }
