@@ -39,7 +39,7 @@ export const UserDB = {
       bio: user.bio,
     };
 
-    const { data, error } = await supabase.from('users').insert(dbUser).select().single();
+    const { data, error } = await supabase.from('users').insert(dbUser as any).select().single();
     if (error) throw error;
     return this.toUser(data);
   },
