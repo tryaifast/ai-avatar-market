@@ -39,7 +39,7 @@ export interface User {
 export type IdentityTag = 
   | '程序员' | '产品经理' | '设计师' | '运营' | '市场' 
   | '医生' | '律师' | '教师' | '咨询顾问' | '作家'
-  | '翻译' | '数据分析师' | '财务' | 'HR' | '其他';
+  | '翻译' | '数据分析师' | '财务' | 'HR' | '管理员' | '其他';
 
 // AI分身
 export interface Avatar {
