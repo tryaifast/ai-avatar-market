@@ -605,4 +605,5 @@ export const DB = {
   Notification: NotificationDB,
   Dashboard: DashboardDB,
   CreatorApplication: CreatorApplicationDB,
+  db, // 导出原始db客户端供直接使用
 };

@@ -82,6 +82,14 @@ function AdminDashboardContent() {
                 <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{stats.pendingReviews}</span>
               )}
             </Link>
+            <Link href="/admin/feedbacks" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+              <span>💬</span>
+              <span>留言管理</span>
+            </Link>
+            <Link href="/admin/messages" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+              <span>📢</span>
+              <span>消息推送</span>
+            </Link>
           </nav>
         </aside>
 

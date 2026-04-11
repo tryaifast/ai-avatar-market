@@ -1,14 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { Bot, User, LogOut, Shield, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { Bot, User, LogOut, Shield, ChevronDown, MessageSquare, Bell } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/lib/store';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // 获取未读消息数量
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchUnreadCount = async () => {
+      try {
+        const res = await fetch('/api/messages');
+        const data = await res.json();
+        if (data.success) {
+          setUnreadCount(data.unreadCount || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+    // 每30秒刷新一次
+    const interval = setInterval(fetchUnreadCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   return (
     <header className="bg-white border-b">
@@ -66,6 +89,30 @@ export default function Header() {
                 >
                   创建分身
                 </Link>
+                
+                {/* 消息提醒 */}
+                <Link 
+                  href="/client/messages" 
+                  className="relative text-gray-600 hover:text-gray-900"
+                  title="我的消息"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+                
+                {/* 意见反馈 */}
+                <Link 
+                  href="/client/feedback" 
+                  className="text-gray-600 hover:text-gray-900"
+                  title="意见反馈"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </Link>
+                
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
                     <User className="w-4 h-4 text-gray-600" />
