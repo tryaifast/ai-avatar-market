@@ -26,9 +26,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '用户不存在' }, { status: 404 });
     }
 
-    // 创建留言
-    const { data, error } = await DB.db
-      .from('feedbacks')
+    // 创建留言（新表不在TS类型定义中，用as any绕过）
+    const { data, error } = await (DB.db.from('feedbacks') as any)
       .insert({
         user_id: user.id,
         user_email: user.email,
@@ -64,8 +63,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { data, error } = await DB.db
-      .from('feedbacks')
+    const { data, error } = await (DB.db.from('feedbacks') as any)
       .select('*')
       .eq('user_id', currentUser.userId)
       .order('created_at', { ascending: false });

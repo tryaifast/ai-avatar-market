@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
     }
 
-    const { data, error } = await DB.db
-      .from('admin_broadcasts')
+    // 新表不在TS类型定义中，用as any绕过
+    const { data, error } = await (DB.db.from('admin_broadcasts') as any)
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -60,9 +60,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '请填写标题和内容' }, { status: 400 });
     }
 
-    // 创建广播记录
-    const { data: broadcast, error: broadcastError } = await DB.db
-      .from('admin_broadcasts')
+    // 创建广播记录（新表不在TS类型定义中，用as any绕过）
+    const { data: broadcast, error: broadcastError } = await (DB.db.from('admin_broadcasts') as any)
       .insert({
         title: title.trim(),
         content: content.trim(),
@@ -85,7 +84,7 @@ export async function POST(req: NextRequest) {
         content: content.trim(),
       }));
 
-      const { error: msgError } = await DB.db.from('user_messages').insert(messages);
+      const { error: msgError } = await (DB.db.from('user_messages') as any).insert(messages);
       if (msgError) throw msgError;
     } else {
       // 推送给所有用户
@@ -104,7 +103,7 @@ export async function POST(req: NextRequest) {
         const batchSize = 100;
         for (let i = 0; i < messages.length; i += batchSize) {
           const batch = messages.slice(i, i + batchSize);
-          const { error: msgError } = await DB.db.from('user_messages').insert(batch);
+          const { error: msgError } = await (DB.db.from('user_messages') as any).insert(batch);
           if (msgError) throw msgError;
         }
       }

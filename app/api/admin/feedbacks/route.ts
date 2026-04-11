@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
 
-    let query = DB.db.from('feedbacks').select('*').order('created_at', { ascending: false });
+    let query = (DB.db.from('feedbacks') as any).select('*').order('created_at', { ascending: false });
 
     if (status && status !== 'all') {
       query = query.eq('status', status);
@@ -67,9 +67,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '请填写回复内容' }, { status: 400 });
     }
 
-    // 更新留言状态
-    const { data: feedback, error: updateError } = await (DB.db
-      .from('feedbacks')
+    // 更新留言状态（新表不在TS类型定义中，用as any绕过）
+    const { data: feedback, error: updateError } = await (DB.db.from('feedbacks') as any)
       .update({
         status: 'replied',
         admin_reply: reply.trim(),
@@ -77,12 +76,12 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', feedbackId)
       .select()
-      .single() as any);
+      .single();
 
     if (updateError) throw updateError;
 
-    // 给用户发送消息通知
-    await DB.db.from('user_messages').insert({
+    // 给用户发送消息通知（新表不在TS类型定义中，用as any绕过）
+    await (DB.db.from('user_messages') as any).insert({
       user_id: feedback.user_id,
       type: 'reply',
       title: '您的留言已收到回复',
@@ -125,7 +124,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: '缺少留言ID' }, { status: 400 });
     }
 
-    const { error } = await DB.db.from('feedbacks').delete().eq('id', feedbackId);
+    const { error } = await (DB.db.from('feedbacks') as any).delete().eq('id', feedbackId);
 
     if (error) throw error;
 

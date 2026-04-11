@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const { data, error } = await DB.db
-      .from('user_messages')
+    // 新表不在TS类型定义中，用as any绕过
+    const { data, error } = await (DB.db.from('user_messages') as any)
       .select('*')
       .eq('user_id', currentUser.userId)
       .order('created_at', { ascending: false });
@@ -23,8 +23,7 @@ export async function GET(req: NextRequest) {
     if (error) throw error;
 
     // 统计未读数量
-    const { count, error: countError } = await DB.db
-      .from('user_messages')
+    const { count, error: countError } = await (DB.db.from('user_messages') as any)
       .select('*', { count: 'exact', head: true })
       .eq('user_id', currentUser.userId)
       .eq('is_read', false);
@@ -57,8 +56,7 @@ export async function POST(req: NextRequest) {
 
     if (markAll) {
       // 标记所有消息已读
-      const { error } = await DB.db
-        .from('user_messages')
+      const { error } = await (DB.db.from('user_messages') as any)
         .update({ is_read: true })
         .eq('user_id', currentUser.userId)
         .eq('is_read', false);
@@ -76,8 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 标记单条消息已读
-    const { error } = await DB.db
-      .from('user_messages')
+    const { error } = await (DB.db.from('user_messages') as any)
       .update({ is_read: true })
       .eq('id', messageId)
       .eq('user_id', currentUser.userId);
@@ -112,8 +109,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: '缺少消息ID' }, { status: 400 });
     }
 
-    const { error } = await DB.db
-      .from('user_messages')
+    const { error } = await (DB.db.from('user_messages') as any)
       .delete()
       .eq('id', messageId)
       .eq('user_id', currentUser.userId);
