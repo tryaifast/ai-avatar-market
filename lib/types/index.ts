@@ -3,7 +3,7 @@
 // ============================================
 
 // 用户身份
-export type UserRole = 'creator' | 'client' | 'both';
+export type UserRole = 'creator' | 'client' | 'both' | 'admin';
 
 export interface User {
   id: string;
