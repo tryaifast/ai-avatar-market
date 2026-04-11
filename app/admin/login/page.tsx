@@ -8,20 +8,32 @@ import { useAuthStore } from '@/lib/store';
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading, isAuthenticated } = useAuthStore();
+  const login = useAuthStore((s) => s.login);
+  const isLoading = useAuthStore((s) => s.isLoading);
   const [error, setError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoggingIn(true);
 
-    const result = await login(email, password);
+    try {
+      const result = await login(email, password);
 
-    if (result.success) {
-      router.push('/admin/dashboard');
-    } else {
-      setError(result.error || '邮箱或密码错误');
+      if (result.success) {
+        // 给 Zustand persist 一点时间写入 localStorage
+        setTimeout(() => {
+          router.push('/admin/dashboard');
+        }, 200);
+      } else {
+        setError(result.error || '邮箱或密码错误');
+        setIsLoggingIn(false);
+      }
+    } catch (err: any) {
+      setError('登录失败，请重试');
+      setIsLoggingIn(false);
     }
   };
 
@@ -43,6 +55,7 @@ export default function AdminLoginPage() {
               className="input"
               placeholder="admin@example.com"
               required
+              disabled={isLoggingIn}
             />
           </div>
 
@@ -55,6 +68,7 @@ export default function AdminLoginPage() {
               className="input"
               placeholder="请输入密码"
               required
+              disabled={isLoggingIn}
             />
           </div>
 
@@ -66,10 +80,10 @@ export default function AdminLoginPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoggingIn || isLoading}
             className="btn btn-primary w-full"
           >
-            {isLoading ? '登录中...' : '登录'}
+            {isLoggingIn ? '登录中...' : '登录'}
           </button>
         </form>
 

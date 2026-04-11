@@ -9,41 +9,52 @@ interface AdminProtectedRouteProps {
 }
 
 // 管理后台路由保护组件
-// - 检查用户是否登录
+// - 检查用户是否登录（支持 Zustand persist 异步恢复）
 // - 检查用户是否为管理员
 // - 未登录 → 跳转到 /admin/login
 // - 非管理员 → 跳转到 /auth/login
 export default function AdminProtectedRoute({ children }: AdminProtectedRouteProps) {
   const router = useRouter();
-  const { user, isLoading } = useAuthStore();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [hydrated, setHydrated] = useState(false);
+  const [checked, setChecked] = useState(false);
 
+  // 等待 Zustand persist hydration 完成
   useEffect(() => {
-    // 等待 auth 状态加载完成
-    if (isLoading) return;
+    // Zustand persist hydration 在客户端首次渲染后异步进行
+    // 用 requestAnimationFrame 确保在 hydration 后再检查
+    const raf = requestAnimationFrame(() => {
+      setHydrated(true);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
-    // 检查登录状态
-    if (!user) {
-      console.log('[AdminProtectedRoute] Not logged in, redirecting to /admin/login');
-      router.replace('/admin/login');
-      return;
-    }
+  // hydration 完成后再检查权限
+  useEffect(() => {
+    if (!hydrated) return;
 
-    // 检查管理员权限
-    if (user.role !== 'admin') {
-      console.log('[AdminProtectedRoute] Not admin, redirecting to /auth/login');
-      router.replace('/auth/login');
-      return;
-    }
+    const timer = setTimeout(() => {
+      if (!user || !isAuthenticated) {
+        console.log('[AdminProtectedRoute] Not logged in, redirecting to /admin/login');
+        router.replace('/admin/login');
+        return;
+      }
 
-    // 通过验证
-    setIsAuthorized(true);
-    setIsChecking(false);
-  }, [user, isLoading, router]);
+      if (user.role !== 'admin') {
+        console.log('[AdminProtectedRoute] Not admin, redirecting to /auth/login');
+        router.replace('/auth/login');
+        return;
+      }
 
-  // 加载中显示 loading
-  if (isLoading || isChecking) {
+      setChecked(true);
+    }, 50);
+
+    return () => clearTimeout(timer);
+  }, [hydrated, user, isAuthenticated, router]);
+
+  // 等待 hydration 或权限检查
+  if (!hydrated || !checked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -54,11 +65,5 @@ export default function AdminProtectedRoute({ children }: AdminProtectedRoutePro
     );
   }
 
-  // 未授权不渲染内容
-  if (!isAuthorized) {
-    return null;
-  }
-
-  // 已授权渲染子内容
   return <>{children}</>;
 }
