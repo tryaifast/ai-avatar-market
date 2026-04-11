@@ -39,7 +39,7 @@ export const UserDB = {
       bio: user.bio,
     };
 
-    const { data, error } = await supabase.from('users').insert(dbUser as any).select().single();
+    const { data, error } = await (supabase as any).from('users').insert(dbUser).select().single();
     if (error) throw error;
     return this.toUser(data);
   },
@@ -53,7 +53,7 @@ export const UserDB = {
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
 
-    const { data, error } = await (supabase.from('users').update(dbUpdates) as any).eq('id', id).select().single();
+    const { data, error } = await (supabase as any).from('users').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
@@ -147,7 +147,7 @@ export const AvatarDB = {
       status: avatar.status,
     };
 
-    const { data, error } = await supabase.from('avatars').insert(dbAvatar).select().single();
+    const { data, error } = await (supabase as any).from('avatars').insert(dbAvatar).select().single();
     if (error) throw error;
     return this.toAvatar(data);
   },
@@ -165,13 +165,13 @@ export const AvatarDB = {
       if (updates.personality.expertise !== undefined) dbUpdates.personality_expertise = updates.personality.expertise;
     }
 
-    const { data, error } = await (supabase.from('avatars').update(dbUpdates) as any).eq('id', id).select().single();
+    const { data, error } = await (supabase as any).from('avatars').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toAvatar(data);
   },
 
   async search(query: string, filters?: { identity?: string; expertise?: string[] }): Promise<Avatar[]> {
-    let qb = supabase.from('avatars').select('*').eq('status', 'active');
+    let qb = (supabase as any).from('avatars').select('*').eq('status', 'active');
 
     if (query) {
       qb = qb.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
@@ -307,7 +307,7 @@ export const TaskDB = {
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
 
-    const { data, error } = await (supabase.from('tasks').update(dbUpdates) as any).eq('id', id).select().single();
+    const { data, error } = await (supabase as any).from('tasks').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toTask(data);
   },
@@ -381,7 +381,7 @@ export const MessageDB = {
       attachments: message.attachments || [],
     };
 
-    const { data, error } = await supabase.from('messages').insert(dbMessage).select().single();
+    const { data, error } = await (supabase as any).from('messages').insert(dbMessage).select().single();
     if (error) throw error;
     return this.toMessage(data);
   },
@@ -427,7 +427,7 @@ export const ReviewDB = {
       tags: review.tags || [],
     };
 
-    const { data, error } = await supabase.from('reviews').insert(dbReview).select().single();
+    const { data, error } = await (supabase as any).from('reviews').insert(dbReview).select().single();
     if (error) throw error;
     return this.toReview(data);
   },
@@ -573,13 +573,13 @@ export const CreatorApplicationDB = {
   },
 
   async create(application: any): Promise<any> {
-    const { data, error } = await supabase.from('creator_applications').insert(application).select().single();
+    const { data, error } = await (supabase as any).from('creator_applications').insert(application).select().single();
     if (error) throw error;
     return data;
   },
 
   async update(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await supabase.from('creator_applications').update(updates).eq('id', id).select().single();
+    const { data, error } = await (supabase as any).from('creator_applications').update(updates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return data;
   },
