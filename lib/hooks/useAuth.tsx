@@ -1,20 +1,16 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { createContext, useContext, ReactNode } from 'react';
+import { useAuthStore } from '@/lib/store';
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+// useAuth 统一使用 Zustand Store 的认证状态
+// 不再维护独立的 localStorage user/token
 
 interface AuthContextType {
-  user: User | null;
+  user: any | null;
   token: string | null;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: any) => void;
   logout: () => void;
   isLoading: boolean;
 }
@@ -22,41 +18,25 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+  const storeUser = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const storeLogout = useAuthStore((s) => s.logout);
 
-  useEffect(() => {
-    // 从 localStorage 恢复登录状态
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    
-    setIsLoading(false);
-  }, []);
-
-  const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    setToken(newToken);
-    setUser(newUser);
+  const login = (token: string, user: any) => {
+    // Zustand store 的 login 是 (email, password) 模式
+    // 这里直接 setUser 同步状态
+    useAuthStore.getState().setUser(user);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-    router.push('/auth/login');
+    storeLogout();
+    // 不强制跳转，让调用方决定
   };
 
+  const token = storeUser?.id || null;
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user: storeUser, token, login, logout, isLoading: false }}>
       {children}
     </AuthContext.Provider>
   );

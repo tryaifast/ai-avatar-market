@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { Bot, User, LogOut, Shield, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthStore } from '@/lib/store';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   return (

@@ -23,14 +23,17 @@ export default function LoginPage() {
     
     if (result.success) {
       const user = useAuthStore.getState().user;
-      // 根据角色跳转
-      if (user?.role === 'creator') {
-        router.push('/creator/dashboard');
-      } else if (user?.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/client/market');
-      }
+      // 延迟跳转，等待 Zustand persist 写入 localStorage
+      setTimeout(() => {
+        // 根据角色跳转
+        if (user?.role === 'admin') {
+          router.push('/admin/dashboard');
+        } else if (user?.role === 'creator') {
+          router.push('/creator/dashboard');
+        } else {
+          router.push('/landing');
+        }
+      }, 300);
     } else {
       setError(result.error || '邮箱或密码错误');
     }

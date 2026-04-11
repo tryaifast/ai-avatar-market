@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useAuthStore } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 用户管理页面内容 - 从API获取真实用户数据
@@ -11,7 +11,8 @@ function AdminUsersContent() {
   const [filter, setFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user: currentUser, token } = useAuth();
+  const currentUser = useAuthStore((s) => s.user);
+  const token = currentUser?.id;
   
   // 修改密码弹窗状态
   const [showPasswordModal, setShowPasswordModal] = useState(false);

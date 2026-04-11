@@ -82,7 +82,10 @@ export default function RegisterPage() {
 
     if (result.success) {
       recordDeviceRegistration();
-      router.push('/client/market');
+      // 注册成功后延迟跳转，等待 Zustand persist 写入 localStorage
+      setTimeout(() => {
+        router.push('/landing');
+      }, 300);
     } else {
       // 翻译常见错误
       const errMsg = result.error || '注册失败，请重试';

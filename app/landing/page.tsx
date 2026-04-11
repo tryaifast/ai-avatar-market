@@ -1,12 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useAuth } from '@/lib/hooks/useAuth';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store';
 import { User, LogOut } from 'lucide-react';
 
 // 首页 Landing Page
 export default function LandingPage() {
-  const { user, logout } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const logout = useAuthStore((s) => s.logout);
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.refresh();
+  };
 
   return (
     <div className="min-h-screen">
@@ -23,7 +32,7 @@ export default function LandingPage() {
                 // 已登录显示用户头像和菜单
                 <div className="flex items-center gap-4">
                   <Link 
-                    href={user.role === 'creator' ? '/creator/dashboard' : '/client/market'}
+                    href={user.role === 'admin' ? '/admin/dashboard' : user.role === 'creator' ? '/creator/dashboard' : '/client/market'}
                     className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
                   >
                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
@@ -32,7 +41,7 @@ export default function LandingPage() {
                     <span className="font-medium">{user.name}</span>
                   </Link>
                   <button 
-                    onClick={logout}
+                    onClick={handleLogout}
                     className="text-white/80 hover:text-white"
                     title="退出登录"
                   >
