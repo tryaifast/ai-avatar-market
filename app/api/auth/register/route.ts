@@ -48,8 +48,21 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Register error:', error);
+    
+    // 如果是 RLS 错误，返回更详细的信息帮助排查
+    const isRLSError = error?.message?.includes('row-level security') || 
+                       error?.code === '42501' ||
+                       error?.message?.includes('policy');
+    
     return NextResponse.json(
-      { error: error.message || 'Internal server error' },
+      { 
+        error: error.message || 'Internal server error',
+        debug: isRLSError ? {
+          hint: 'RLS policy violation - service role key may not be configured correctly on Vercel',
+          serviceKeyConfigured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          serviceKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...',
+        } : undefined,
+      },
       { status: 500 }
     );
   }
