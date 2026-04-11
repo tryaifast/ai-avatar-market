@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { User, Avatar, Task, Notification } from '../types';
+export type { User, Avatar, Task, Notification };
 
 // ============================================
 // Auth Store - 用户认证状态
