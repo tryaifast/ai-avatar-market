@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAuthStore, useAvatarStore, useApplicationStore } from '@/lib/store';
+import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 管理端仪表盘
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const [dateRange, setDateRange] = useState('7d');
   const { user, logout } = useAuthStore();
   const { avatars, fetchAvatars } = useAvatarStore();
@@ -174,5 +175,14 @@ export default function AdminDashboardPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+// 导出带权限保护的页面
+export default function AdminDashboardPage() {
+  return (
+    <AdminProtectedRoute>
+      <AdminDashboardContent />
+    </AdminProtectedRoute>
   );
 }

@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAvatarStore } from '@/lib/store';
+import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
-// 分身管理页面
-export default function AdminAvatarsPage() {
+// 分身管理页面内容
+function AdminAvatarsContent() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'active' | 'reviewing' | 'paused' | 'banned'>('all');
   const { avatars, fetchAvatars, isLoading } = useAvatarStore();
@@ -166,5 +167,14 @@ export default function AdminAvatarsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 导出带权限保护的页面
+export default function AdminAvatarsPage() {
+  return (
+    <AdminProtectedRoute>
+      <AdminAvatarsContent />
+    </AdminProtectedRoute>
   );
 }

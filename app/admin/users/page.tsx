@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/useAuth';
+import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
-// 用户管理页面 - 从API获取真实用户数据
-export default function AdminUsersPage() {
+// 用户管理页面内容 - 从API获取真实用户数据
+function AdminUsersContent() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
   const [users, setUsers] = useState<any[]>([]);
@@ -321,5 +322,14 @@ export default function AdminUsersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// 导出带权限保护的页面
+export default function AdminUsersPage() {
+  return (
+    <AdminProtectedRoute>
+      <AdminUsersContent />
+    </AdminProtectedRoute>
   );
 }

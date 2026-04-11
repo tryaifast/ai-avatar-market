@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useApplicationStore, useAuthStore } from '@/lib/store';
+import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
-// 审核管理页面
-export default function AdminReviewsPage() {
+// 审核管理页面内容
+function AdminReviewsContent() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -214,5 +215,14 @@ export default function AdminReviewsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// 导出带权限保护的页面
+export default function AdminReviewsPage() {
+  return (
+    <AdminProtectedRoute>
+      <AdminReviewsContent />
+    </AdminProtectedRoute>
   );
 }

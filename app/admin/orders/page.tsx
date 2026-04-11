@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTaskStore, useAuthStore } from '@/lib/store';
+import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
-// 订单管理页面
-export default function AdminOrdersPage() {
+// 订单管理页面内容
+function AdminOrdersContent() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { tasks, fetchTasks, isLoading } = useTaskStore();
@@ -165,5 +166,14 @@ export default function AdminOrdersPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 导出带权限保护的页面
+export default function AdminOrdersPage() {
+  return (
+    <AdminProtectedRoute>
+      <AdminOrdersContent />
+    </AdminProtectedRoute>
   );
 }
