@@ -1,30 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuthStore, useAvatarStore, useApplicationStore } from '@/lib/store';
 
 // 管理端仪表盘
 export default function AdminDashboardPage() {
   const [dateRange, setDateRange] = useState('7d');
-  
-  // Mock 统计数据
-  const stats = {
-    totalUsers: 1248,
-    newUsersToday: 23,
-    totalAvatars: 356,
-    pendingReviews: 12,
-    totalRevenue: 158600,
-    todayRevenue: 5600,
-  };
-  
-  // Mock 近期活动
-  const recentActivities = [
-    { id: 1, type: 'user', action: '新用户注册', detail: '用户 李明 完成注册', time: '10分钟前' },
-    { id: 2, type: 'review', action: '入驻申请', detail: '王芳 提交了入驻申请', time: '30分钟前' },
-    { id: 3, type: 'order', action: '新订单', detail: '订单 #20250408001 已支付', time: '1小时前' },
-    { id: 4, type: 'avatar', action: '分身审核', detail: '张明的AI分身已通过审核', time: '2小时前' },
-    { id: 5, type: 'complaint', action: '投诉处理', detail: '用户反馈已处理完毕', time: '3小时前' },
-  ];
+  const { user, logout } = useAuthStore();
+  const { avatars, fetchAvatars } = useAvatarStore();
+  const { applications, fetchApplications } = useApplicationStore();
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalAvatars: 0,
+    pendingReviews: 0,
+    totalRevenue: 0,
+    todayRevenue: 0,
+  });
+
+  useEffect(() => {
+    fetchAvatars();
+    fetchApplications('pending');
+  }, [fetchAvatars, fetchApplications]);
+
+  useEffect(() => {
+    setStats({
+      totalUsers: 0, // 需要从API获取
+      totalAvatars: avatars.length,
+      pendingReviews: applications.length,
+      totalRevenue: 0,
+      todayRevenue: 0,
+    });
+  }, [avatars.length, applications.length]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -33,8 +40,14 @@ export default function AdminDashboardPage() {
         <div className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">管理后台</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">管理员</span>
-            <button className="text-sm text-gray-600 hover:text-gray-900">
+            <span className="text-sm text-gray-500">{user?.name || '管理员'}</span>
+            <button
+              onClick={() => {
+                logout();
+                window.location.href = '/admin/login';
+              }}
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
               退出
             </button>
           </div>
@@ -64,7 +77,9 @@ export default function AdminDashboardPage() {
             <Link href="/admin/reviews" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
               <span>✅</span>
               <span>审核管理</span>
-              <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{stats.pendingReviews}</span>
+              {stats.pendingReviews > 0 && (
+                <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">{stats.pendingReviews}</span>
+              )}
             </Link>
           </nav>
         </aside>
@@ -91,7 +106,6 @@ export default function AdminDashboardPage() {
             <div className="stat-card">
               <p className="stat-card-title">总用户数</p>
               <p className="stat-card-value">{stats.totalUsers.toLocaleString()}</p>
-              <p className="stat-card-change stat-card-change-up">+{stats.newUsersToday} 今日新增</p>
             </div>
             <div className="stat-card">
               <p className="stat-card-title">AI分身数量</p>
@@ -101,36 +115,33 @@ export default function AdminDashboardPage() {
             <div className="stat-card">
               <p className="stat-card-title">平台总收入</p>
               <p className="stat-card-value">¥{stats.totalRevenue.toLocaleString()}</p>
-              <p className="stat-card-change stat-card-change-up">+¥{stats.todayRevenue} 今日</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* 近期活动 */}
+            {/* 近期活动 - 从申请数据生成 */}
             <div className="card lg:col-span-2">
               <h3 className="font-semibold mb-4">近期活动</h3>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      activity.type === 'user' ? 'bg-blue-100' :
-                      activity.type === 'review' ? 'bg-yellow-100' :
-                      activity.type === 'order' ? 'bg-green-100' :
-                      'bg-gray-100'
-                    }`}>
-                      {activity.type === 'user' ? '👤' :
-                       activity.type === 'review' ? '📝' :
-                       activity.type === 'order' ? '💰' :
-                       activity.type === 'avatar' ? '🤖' : '📋'}
+              {applications.length > 0 ? (
+                <div className="space-y-4">
+                  {applications.slice(0, 5).map((app: any) => (
+                    <div key={app.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-yellow-100">
+                        📝
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium">入驻申请</p>
+                        <p className="text-sm text-gray-600">{(app as any).userName || (app as any).name || '用户'} 提交了入驻申请</p>
+                      </div>
+                      <span className="text-sm text-gray-400">
+                        {(app as any).submittedAt || (app as any).createdAt ? new Date((app as any).submittedAt || (app as any).createdAt).toLocaleDateString() : ''}
+                      </span>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{activity.action}</p>
-                      <p className="text-sm text-gray-600">{activity.detail}</p>
-                    </div>
-                    <span className="text-sm text-gray-400">{activity.time}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-center py-4">暂无近期活动</p>
+              )}
             </div>
 
             {/* 快捷操作 */}

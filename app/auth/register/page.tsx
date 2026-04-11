@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { addMockUser, mockUsers } from '@/lib/mock/data';
+import { useAuthStore } from '@/lib/store';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,29 +15,21 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  // 风控检查函数
-  const checkEmailExists = (email: string): boolean => {
-    return mockUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-  };
+  const { register, isLoading } = useAuthStore();
 
   const checkDeviceLimit = (): { allowed: boolean; message?: string } => {
     const deviceKey = 'device_registrations';
     const today = new Date().toISOString().split('T')[0];
     
-    // 获取设备注册记录
     const stored = localStorage.getItem(deviceKey);
     let records: { date: string; count: number } = stored 
       ? JSON.parse(stored) 
       : { date: today, count: 0 };
     
-    // 如果日期不同，重置计数
     if (records.date !== today) {
       records = { date: today, count: 0 };
     }
     
-    // 检查是否超过每日限制（3次）
     if (records.count >= 3) {
       return { 
         allowed: false, 
@@ -69,7 +61,6 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    // 验证密码
     if (password !== confirmPassword) {
       setError('两次输入的密码不一致');
       return;
@@ -80,55 +71,26 @@ export default function RegisterPage() {
       return;
     }
 
-    // 风控1: 检查邮箱是否已注册
-    if (checkEmailExists(email)) {
-      setError('该邮箱已注册，请直接登录');
-      return;
-    }
-
-    // 风控2: 检查设备注册限制
+    // 风控: 检查设备注册限制
     const deviceCheck = checkDeviceLimit();
     if (!deviceCheck.allowed) {
       setError(deviceCheck.message || '注册受限');
       return;
     }
 
-    setLoading(true);
+    const result = await register(email, password, name, 'client');
 
-    try {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // 生成新用户
-      const newUser = {
-        id: `user_${Date.now()}`,
-        email,
-        name,
-        role: 'client' as const,
-        isVerified: false,
-        onboardingStatus: 'pending' as const,
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-
-      // 添加到mockUsers（这样后续登录才能找到）
-      addMockUser(newUser);
-
-      // 记录设备注册次数（风控）
+    if (result.success) {
       recordDeviceRegistration();
-
-      // 生成模拟token
-      const token = `mock_token_${newUser.id}_${Date.now()}`;
-
-      // 保存到localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(newUser));
-
-      // 跳转到首页
       router.push('/client/market');
-    } catch (err: any) {
-      setError(err.message || '注册失败，请重试');
-    } finally {
-      setLoading(false);
+    } else {
+      // 翻译常见错误
+      const errMsg = result.error || '注册失败，请重试';
+      if (errMsg.includes('already registered') || errMsg.includes('已注册')) {
+        setError('该邮箱已注册，请直接登录');
+      } else {
+        setError(errMsg);
+      }
     }
   };
 
@@ -245,10 +207,10 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '注册中...' : '注册'}
+            {isLoading ? '注册中...' : '注册'}
           </button>
 
           <div className="text-center">

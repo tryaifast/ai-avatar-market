@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { mockUsers } from '@/lib/mock/data';
+import { useAuthStore } from '@/lib/store';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,48 +13,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { login, isLoading } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    try {
-      // 模拟API延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // 在Mock数据中查找用户
-      const user = mockUsers.find(u => u.email === email);
-      
-      if (!user) {
-        throw new Error('邮箱或密码错误');
-      }
-      
-      // 模拟密码验证（实际项目中应该比较哈希值）
-      if (password.length < 6) {
-        throw new Error('邮箱或密码错误');
-      }
-
-      // 生成模拟token
-      const token = `mock_token_${user.id}_${Date.now()}`;
-
-      // 保存到localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
+    const result = await login(email, password);
+    
+    if (result.success) {
+      const user = useAuthStore.getState().user;
       // 根据角色跳转
-      if (user.role === 'creator') {
+      if (user?.role === 'creator') {
         router.push('/creator/dashboard');
-      } else if (user.role === 'admin') {
+      } else if (user?.role === 'admin') {
         router.push('/admin/dashboard');
       } else {
         router.push('/client/market');
       }
-    } catch (err: any) {
-      setError(err.message || '登录失败，请重试');
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error || '邮箱或密码错误');
     }
   };
 
@@ -135,10 +113,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isLoading}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '登录中...' : '登录'}
+            {isLoading ? '登录中...' : '登录'}
           </button>
 
           <div className="text-center">

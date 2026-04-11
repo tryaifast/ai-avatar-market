@@ -1,94 +1,56 @@
-// @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTaskStore, useAuthStore } from '@/lib/store';
 
 // 订单管理页面
 export default function AdminOrdersPage() {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'paid' | 'inProgress' | 'completed' | 'cancelled'>('all');
-  
-  // Mock 订单数据
-  const orders = [
-    { 
-      id: 'ORD-20250408001', 
-      avatarName: '产品经理·Lisa', 
-      clientName: '张华',
-      creatorName: '李莎',
-      type: 'per_task',
-      amount: 5000, 
-      status: 'completed',
-      createdAt: '2026-04-08 10:30',
-      paidAt: '2026-04-08 10:35'
-    },
-    { 
-      id: 'ORD-20250408002', 
-      avatarName: '代码审查助手·小明', 
-      clientName: '王强',
-      creatorName: '张明',
-      type: 'hourly',
-      amount: 2400, 
-      status: 'inProgress',
-      createdAt: '2026-04-08 14:20',
-      paidAt: '2026-04-08 14:25'
-    },
-    { 
-      id: 'ORD-20250408003', 
-      avatarName: '法律顾问·正义', 
-      clientName: '刘总',
-      creatorName: '刘正',
-      type: 'per_task',
-      amount: 8000, 
-      status: 'pending',
-      createdAt: '2026-04-08 16:45',
-    },
-    { 
-      id: 'ORD-20250407001', 
-      avatarName: 'UI设计·Pixel', 
-      clientName: '陈经理',
-      creatorName: '赵艺',
-      type: 'per_task',
-      amount: 6000, 
-      status: 'completed',
-      createdAt: '2026-04-07 09:15',
-      paidAt: '2026-04-07 09:20'
-    },
-    { 
-      id: 'ORD-20250407002', 
-      avatarName: '文案策划·阿文', 
-      clientName: '李总',
-      creatorName: '王文',
-      type: 'subscription',
-      amount: 29900, 
-      status: 'cancelled',
-      createdAt: '2026-04-07 11:00',
-      paidAt: '2026-04-07 11:05'
-    },
-  ];
-  
-  const filteredOrders = orders.filter(o => {
-    const matchesSearch = o.id.includes(search) || o.avatarName.includes(search) || o.clientName.includes(search);
-    const matchesFilter = statusFilter === 'all' || o.status === statusFilter;
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { tasks, fetchTasks, isLoading } = useTaskStore();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    // 获取所有任务（管理视角）
+    if (user?.id) {
+      fetchTasks(user.id, 'creator');
+    }
+  }, [user?.id, fetchTasks]);
+
+  const filteredOrders = tasks.filter((t: any) => {
+    const matchesSearch = t.id?.includes(search) || t.title?.includes(search);
+    const matchesFilter = statusFilter === 'all' || t.status === statusFilter;
     return matchesSearch && matchesFilter;
   });
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-700',
-      paid: 'bg-blue-100 text-blue-700',
-      inProgress: 'bg-purple-100 text-purple-700',
+      ai_working: 'bg-purple-100 text-purple-700',
+      ai_completed: 'bg-indigo-100 text-indigo-700',
+      human_reviewing: 'bg-blue-100 text-blue-700',
+      delivered: 'bg-teal-100 text-teal-700',
       completed: 'bg-green-100 text-green-700',
       cancelled: 'bg-red-100 text-red-700',
     };
     const labels: Record<string, string> = {
-      pending: '待支付',
-      paid: '已支付',
-      inProgress: '进行中',
+      pending: '待处理',
+      ai_working: 'AI工作中',
+      ai_completed: 'AI完成',
+      human_reviewing: '真人审核中',
+      delivered: '已交付',
       completed: '已完成',
       cancelled: '已取消',
     };
-    return { style: styles[status], label: labels[status] };
+    return { style: styles[status] || 'bg-gray-100 text-gray-700', label: labels[status] || status };
+  };
+
+  const statusCounts = {
+    total: tasks.length,
+    pending: tasks.filter((t: any) => t.status === 'pending').length,
+    inProgress: tasks.filter((t: any) => ['ai_working', 'ai_completed', 'human_reviewing'].includes(t.status)).length,
+    totalAmount: tasks.reduce((sum: number, t: any) => sum + (t.price || 0), 0),
   };
 
   return (
@@ -109,19 +71,19 @@ export default function AdminOrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">总订单数</p>
-            <p className="text-2xl font-bold">1,248</p>
+            <p className="text-2xl font-bold">{statusCounts.total}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
-            <p className="text-sm text-gray-500">今日订单</p>
-            <p className="text-2xl font-bold">23</p>
+            <p className="text-sm text-gray-500">进行中</p>
+            <p className="text-2xl font-bold text-purple-600">{statusCounts.inProgress}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">待处理</p>
-            <p className="text-2xl font-bold text-orange-600">8</p>
+            <p className="text-2xl font-bold text-orange-600">{statusCounts.pending}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <p className="text-sm text-gray-500">订单总额</p>
-            <p className="text-2xl font-bold text-green-600">¥158,600</p>
+            <p className="text-2xl font-bold text-green-600">¥{(statusCounts.totalAmount / 100).toLocaleString()}</p>
           </div>
         </div>
 
@@ -131,18 +93,18 @@ export default function AdminOrdersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索订单号、分身或用户..."
+            placeholder="搜索订单号或任务名..."
             className="input max-w-sm"
           />
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => setStatusFilter(e.target.value)}
             className="input w-auto"
           >
             <option value="all">全部状态</option>
-            <option value="pending">待支付</option>
-            <option value="paid">已支付</option>
-            <option value="inProgress">进行中</option>
+            <option value="pending">待处理</option>
+            <option value="ai_working">AI工作中</option>
+            <option value="delivered">已交付</option>
             <option value="completed">已完成</option>
             <option value="cancelled">已取消</option>
           </select>
@@ -150,54 +112,56 @@ export default function AdminOrdersPage() {
 
         {/* 订单列表 */}
         <div className="card">
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>订单号</th>
-                  <th>AI分身</th>
-                  <th>需求方</th>
-                  <th>创作者</th>
-                  <th>金额</th>
-                  <th>状态</th>
-                  <th>创建时间</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => {
-                  const status = getStatusBadge(order.status);
-                  return (
-                    <tr key={order.id}>
-                      <td className="font-mono text-sm">{order.id}</td>
-                      <td>{order.avatarName}</td>
-                      <td>{order.clientName}</td>
-                      <td>{order.creatorName}</td>
-                      <td className="font-medium">¥{order.amount.toLocaleString()}</td>
-                      <td>
-                        <span className={`px-2 py-1 rounded-full text-xs ${status.style}`}>
-                          {status.label}
-                        </span>
-                      </td>
-                      <td className="text-sm text-gray-500">{order.createdAt}</td>
-                      <td>
-                        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-500">加载中...</p>
+            </div>
+          ) : filteredOrders.length > 0 ? (
+            <div className="table-container">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>订单号</th>
+                    <th>任务名</th>
+                    <th>类型</th>
+                    <th>金额</th>
+                    <th>状态</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order: any) => {
+                    const status = getStatusBadge(order.status);
+                    return (
+                      <tr key={order.id}>
+                        <td className="font-mono text-sm">{order.id?.substring(0, 12)}...</td>
+                        <td>{order.title || '-'}</td>
+                        <td>{order.type || '-'}</td>
+                        <td className="font-medium">¥{(order.price || 0) / 100}</td>
+                        <td>
+                          <span className={`px-2 py-1 rounded-full text-xs ${status.style}`}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td className="text-sm text-gray-500">
+                          {order.timeline?.createdAt ? new Date(order.timeline.createdAt).toLocaleString() : '-'}
+                        </td>
+                        <td>
                           <button className="text-blue-600 hover:underline text-sm">
                             详情
                           </button>
-                          {order.status === 'pending' && (
-                            <button className="text-red-600 hover:underline text-sm">
-                              取消
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">暂无订单数据</p>
+          )}
         </div>
       </div>
     </div>

@@ -1,217 +1,50 @@
 // @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Search, Filter, Star, Briefcase, Clock, ChevronRight,
   Bot, User, MessageCircle
 } from 'lucide-react';
-
-// 模拟数据
-const mockAvatars = [
-  {
-    id: 'avatar_1',
-    name: '代码审查助手·小明',
-    description: '专注前端代码审查，熟悉React/Vue/TypeScript。帮你发现潜在bug，优化代码结构。',
-    avatar: '/avatars/1.png',
-    creatorId: 'creator_1',
-    creator: {
-      id: 'creator_1',
-      name: '张明',
-      identity: ['程序员'],
-      avatar: '/avatars/creator1.png',
-      bio: '10年前端开发经验，曾就职于阿里巴巴、字节跳动。擅长前端架构设计和性能优化。',
-      rating: 4.9,
-      totalHires: 320,
-      reviewCount: 156,
-    },
-    personality: {
-      expertise: ['前端开发', '代码审查', '性能优化'],
-      communicationStyle: 'professional',
-    },
-    pricing: {
-      type: 'per_task' as const,
-      perTask: { min: 500, max: 2000, estimate: '根据代码量' },
-    },
-    stats: {
-      hiredCount: 128,
-      rating: 4.9,
-      reviewCount: 86,
-    },
-  },
-  {
-    id: 'avatar_2',
-    name: '产品经理·Lisa',
-    description: '10年产品经验，擅长需求分析、PRD撰写、竞品分析。帮你理清产品思路。',
-    avatar: '/avatars/2.png',
-    creatorId: 'creator_2',
-    creator: {
-      id: 'creator_2',
-      name: '李莎',
-      identity: ['产品经理'],
-      avatar: '/avatars/creator2.png',
-      bio: '前腾讯高级产品经理，主导过多款千万级用户产品。擅长从0到1的产品设计和用户增长。',
-      rating: 4.8,
-      totalHires: 280,
-      reviewCount: 134,
-    },
-    personality: {
-      expertise: ['需求分析', 'PRD撰写', '竞品分析'],
-      communicationStyle: 'friendly',
-    },
-    pricing: {
-      type: 'per_task' as const,
-      perTask: { min: 1000, max: 5000, estimate: '根据复杂度' },
-    },
-    stats: {
-      hiredCount: 89,
-      rating: 4.8,
-      reviewCount: 62,
-    },
-  },
-  {
-    id: 'avatar_3',
-    name: '文案策划·阿文',
-    description: '资深文案，擅长品牌文案、社交媒体内容、广告创意。让你的内容更有传播力。',
-    avatar: '/avatars/3.png',
-    creatorId: 'creator_3',
-    creator: {
-      id: 'creator_3',
-      name: '王文',
-      identity: ['运营'],
-      avatar: '/avatars/creator3.png',
-      bio: '8年品牌运营经验，服务过50+知名品牌。擅长爆款内容策划和社媒运营。',
-      rating: 4.7,
-      totalHires: 450,
-      reviewCount: 289,
-    },
-    personality: {
-      expertise: ['品牌文案', '社媒运营', '创意策划'],
-      communicationStyle: 'humorous',
-    },
-    pricing: {
-      type: 'subscription' as const,
-      subscription: { monthly: 29900, yearly: 299900 },
-    },
-    stats: {
-      hiredCount: 256,
-      rating: 4.7,
-      reviewCount: 178,
-    },
-  },
-  {
-    id: 'avatar_4',
-    name: '数据分析·DataPro',
-    description: '数据分析师，精通SQL/Python/Excel。帮你从数据中发现洞察，做出数据驱动决策。',
-    avatar: '/avatars/4.png',
-    creatorId: 'creator_4',
-    creator: {
-      id: 'creator_4',
-      name: '陈数',
-      identity: ['数据分析师'],
-      avatar: '/avatars/creator4.png',
-      bio: '数学博士，曾任职于美团、京东数据分析部门。专注用户行为分析和商业智能。',
-      rating: 4.9,
-      totalHires: 180,
-      reviewCount: 98,
-    },
-    personality: {
-      expertise: ['数据分析', 'SQL', 'Python', '可视化'],
-      communicationStyle: 'detailed',
-    },
-    pricing: {
-      type: 'per_task' as const,
-      perTask: { min: 800, max: 3000, estimate: '根据数据量' },
-    },
-    stats: {
-      hiredCount: 67,
-      rating: 4.9,
-      reviewCount: 45,
-    },
-  },
-  {
-    id: 'avatar_5',
-    name: '法律顾问·正义',
-    description: '执业律师，专注合同法、知识产权、劳动法。为你提供专业的法律建议。',
-    avatar: '/avatars/5.png',
-    creatorId: 'creator_5',
-    creator: {
-      id: 'creator_5',
-      name: '刘正',
-      identity: ['律师'],
-      avatar: '/avatars/creator5.png',
-      bio: '执业15年，曾任职于金杜律师事务所。擅长企业法务、知识产权保护和劳动纠纷处理。',
-      rating: 4.8,
-      totalHires: 220,
-      reviewCount: 145,
-    },
-    personality: {
-      expertise: ['合同法', '知识产权', '劳动法'],
-      communicationStyle: 'professional',
-    },
-    pricing: {
-      type: 'per_task' as const,
-      perTask: { min: 2000, max: 10000, estimate: '根据咨询类型' },
-    },
-    stats: {
-      hiredCount: 45,
-      rating: 4.8,
-      reviewCount: 32,
-    },
-  },
-  {
-    id: 'avatar_6',
-    name: 'UI设计·Pixel',
-    description: 'UI/UX设计师，擅长移动端和Web设计。帮你做出美观且易用的界面。',
-    avatar: '/avatars/6.png',
-    creatorId: 'creator_6',
-    creator: {
-      id: 'creator_6',
-      name: '赵艺',
-      identity: ['设计师'],
-      avatar: '/avatars/creator6.png',
-      bio: '前Apple设计师，专注于用户体验设计。作品获得多项国际设计大奖。',
-      rating: 4.9,
-      totalHires: 350,
-      reviewCount: 198,
-    },
-    personality: {
-      expertise: ['UI设计', 'UX设计', 'Figma', '原型设计'],
-      communicationStyle: 'friendly',
-    },
-    pricing: {
-      type: 'per_task' as const,
-      perTask: { min: 1500, max: 8000, estimate: '根据页面数' },
-    },
-    stats: {
-      hiredCount: 112,
-      rating: 4.9,
-      reviewCount: 89,
-    },
-  },
-];
+import { useAvatarStore } from '@/lib/store';
 
 const identityFilters = ['全部', '程序员', '产品经理', '设计师', '运营', '律师', '数据分析师'];
 
 export default function MarketPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIdentity, setSelectedIdentity] = useState('全部');
+  const { avatars, fetchAvatars, isLoading } = useAvatarStore();
 
-  const filteredAvatars = mockAvatars.filter(avatar => {
+  useEffect(() => {
+    fetchAvatars();
+  }, [fetchAvatars]);
+
+  const filteredAvatars = avatars.filter(avatar => {
     const matchesSearch = 
       avatar.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       avatar.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      avatar.personality.expertise.some(e => e.toLowerCase().includes(searchQuery.toLowerCase()));
+      (avatar.personality?.expertise || []).some(e => e.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesIdentity = 
       selectedIdentity === '全部' || 
-      avatar.creator.identity.includes(selectedIdentity as any);
+      (avatar.personality?.expertise || []).some(e => e.includes(selectedIdentity));
     
     return matchesSearch && matchesIdentity;
   });
 
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(0)}`;
+
+  if (isLoading && avatars.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Bot className="w-16 h-16 text-blue-400 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">加载分身市场中...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -291,13 +124,7 @@ export default function MarketPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-gray-900 truncate">{avatar.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-5 h-5 bg-gray-200 rounded-full flex items-center justify-center">
-                        <User className="w-3 h-3 text-gray-500" />
-                      </div>
-                      <span className="text-sm text-gray-600">{avatar.creator.name}</span>
-                      <span className="badge-blue text-xs">{avatar.creator.identity[0]}</span>
-                    </div>
+                    <p className="text-sm text-gray-500">{avatar.creatorId}</p>
                   </div>
                 </div>
 
@@ -306,7 +133,7 @@ export default function MarketPage() {
 
                 {/* Expertise Tags */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
-                  {avatar.personality.expertise.slice(0, 3).map((exp) => (
+                  {(avatar.personality?.expertise || []).slice(0, 3).map((exp) => (
                     <span key={exp} className="badge-gray text-xs">
                       {exp}
                     </span>
@@ -317,36 +144,41 @@ export default function MarketPage() {
                 <div className="flex items-center gap-4 text-sm text-gray-500 mb-4">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="font-medium text-gray-900">{avatar.stats.rating}</span>
-                    <span>({avatar.stats.reviewCount})</span>
+                    <span className="font-medium text-gray-900">{avatar.stats?.rating || 0}</span>
+                    <span>({avatar.stats?.reviewCount || 0})</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Briefcase className="w-4 h-4" />
-                    <span>{avatar.stats.hiredCount}次雇佣</span>
+                    <span>{avatar.stats?.hiredCount || 0}次雇佣</span>
                   </div>
                 </div>
 
                 {/* Pricing */}
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div>
-                    {avatar.pricing.type === 'per_task' ? (
+                    {avatar.pricing?.type === 'per_task' ? (
                       <div className="text-sm">
                         <span className="text-gray-500">按任务</span>
                         <div className="font-semibold text-gray-900">
-                          {formatPrice(avatar.pricing.perTask!.min)} - {formatPrice(avatar.pricing.perTask!.max)}
+                          {avatar.pricing.perTask ? `${formatPrice(avatar.pricing.perTask.min)} - ${formatPrice(avatar.pricing.perTask.max)}` : '详询'}
+                        </div>
+                      </div>
+                    ) : avatar.pricing?.type === 'subscription' ? (
+                      <div className="text-sm">
+                        <span className="text-gray-500">订阅</span>
+                        <div className="font-semibold text-gray-900">
+                          {avatar.pricing.subscription ? `${formatPrice(avatar.pricing.subscription.monthly)}/月` : '详询'}
                         </div>
                       </div>
                     ) : (
                       <div className="text-sm">
-                        <span className="text-gray-500">订阅</span>
-                        <div className="font-semibold text-gray-900">
-                          {formatPrice(avatar.pricing.subscription!.monthly)}/月
-                        </div>
+                        <span className="text-gray-500">定价</span>
+                        <div className="font-semibold text-gray-900">详询</div>
                       </div>
                     )}
                   </div>
                   <Link
-                    href={`/client/creator/${avatar.creatorId}`}
+                    href={`/client/hire/${avatar.id}/confirm`}
                     className="btn-primary text-sm"
                   >
                     雇佣

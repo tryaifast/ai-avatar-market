@@ -1,46 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useTaskStore, useAuthStore } from '@/lib/store';
 
 // 项目工作区 - 客户端组件
 export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'files' | 'timeline'>('overview');
-  
-  // Mock 项目数据
-  const project = {
-    id: 'proj-001',
-    name: 'AI 产品策略咨询',
-    status: '进行中',
-    progress: 65,
-    startDate: '2026-04-01',
-    deadline: '2026-04-15',
-    client: {
-      name: '李华',
-      company: '某科技公司',
-    },
-    avatar: {
-      name: '张明',
-      title: '资深产品经理',
-    },
-    budget: 5000,
-    paid: 3000,
-  };
-  
-  // Mock 交付物
-  const deliverables = [
-    { id: 1, name: '需求分析报告.pdf', status: '已完成', date: '2026-04-03' },
-    { id: 2, name: '竞品分析.xlsx', status: '已完成', date: '2026-04-05' },
-    { id: 3, name: '产品规划文档.docx', status: '进行中', date: '-' },
-  ];
-  
-  // Mock 时间线
-  const timeline = [
-    { id: 1, date: '2026-04-01', event: '项目启动', type: 'milestone' },
-    { id: 2, date: '2026-04-03', event: '完成需求分析', type: 'deliverable' },
-    { id: 3, date: '2026-04-05', event: '完成竞品分析', type: 'deliverable' },
-    { id: 4, date: '2026-04-08', event: '中期评审会议', type: 'meeting' },
-  ];
+  const { tasks, currentTask, fetchTasks, fetchTaskById, isLoading: taskLoading } = useTaskStore();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchTasks(user.id, 'client');
+    }
+  }, [user?.id, fetchTasks]);
+
+  // 使用第一个任务作为当前展示项目（如果有URL参数可改为具体任务）
+  const project = currentTask || tasks[0];
+
+  if (taskLoading && tasks.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-gray-500">加载项目数据...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">暂无进行中的项目</p>
+          <Link href="/client/market" className="btn btn-primary">
+            去市场雇佣AI分身
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const taskData = project as any;
+  const deliverables = taskData.workflow?.aiStage?.deliverables || [];
+  const messages = taskData.workflow?.aiStage?.messages || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -52,16 +57,20 @@ export default function WorkspacePage() {
               <Link href="/client/market" className="text-gray-500 hover:text-gray-700">
                 ← 返回市场
               </Link>
-              <h1 className="text-lg font-semibold">{project.name}</h1>
+              <h1 className="text-lg font-semibold">{taskData.title || '项目工作区'}</h1>
               <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                {project.status}
+                {taskData.status === 'ai_working' ? 'AI工作中' :
+                 taskData.status === 'ai_completed' ? '待审核' :
+                 taskData.status === 'delivered' ? '已交付' :
+                 taskData.status === 'completed' ? '已完成' :
+                 taskData.status || '进行中'}
               </span>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">
-                截止: {project.deadline}
+                {taskData.timeline?.createdAt ? `创建: ${new Date(taskData.timeline.createdAt).toLocaleDateString()}` : ''}
               </span>
-              <Link href={`/client/chat?project=${project.id}`}>
+              <Link href={`/client/chat?project=${taskData.id}`}>
                 <button className="btn btn-secondary btn-sm">
                   💬 沟通
                 </button>
@@ -115,46 +124,44 @@ export default function WorkspacePage() {
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-semibold inline-block text-blue-600">
-                      {project.progress}%
+                      {taskData.status === 'completed' ? '100' : taskData.status === 'delivered' ? '80' : taskData.status === 'ai_working' ? '40' : '20'}%
                     </span>
                   </div>
                 </div>
                 <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-100">
                   <div
-                    style={{ width: `${project.progress}%` }}
+                    style={{ width: `${taskData.status === 'completed' ? 100 : taskData.status === 'delivered' ? 80 : taskData.status === 'ai_working' ? 40 : 20}%` }}
                     className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-gray-500">开始日期</p>
-                  <p className="font-medium">{project.startDate}</p>
+                  <p className="text-gray-500">创建日期</p>
+                  <p className="font-medium">{taskData.timeline?.createdAt ? new Date(taskData.timeline.createdAt).toLocaleDateString() : '-'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-500">截止日期</p>
-                  <p className="font-medium">{project.deadline}</p>
+                  <p className="text-gray-500">任务类型</p>
+                  <p className="font-medium">{taskData.type || '-'}</p>
                 </div>
               </div>
             </div>
             
-            {/* 参与方 */}
+            {/* 项目信息 */}
             <div className="card">
-              <h3 className="font-semibold mb-4">参与方</h3>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="avatar">🧑</div>
-                  <div>
-                    <p className="font-medium">{project.client.name}</p>
-                    <p className="text-sm text-gray-500">需求方 · {project.client.company}</p>
-                  </div>
+              <h3 className="font-semibold mb-4">项目信息</h3>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-500">描述</p>
+                  <p className="font-medium text-sm">{taskData.description || '暂无描述'}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="avatar">👨‍💼</div>
-                  <div>
-                    <p className="font-medium">{project.avatar.name}</p>
-                    <p className="text-sm text-gray-500">AI分身 · {project.avatar.title}</p>
-                  </div>
+                <div>
+                  <p className="text-sm text-gray-500">定价方式</p>
+                  <p className="font-medium">{taskData.pricingType === 'fixed' ? '固定价格' : '估价'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">价格</p>
+                  <p className="font-medium">¥{(taskData.price || 0) / 100}</p>
                 </div>
               </div>
             </div>
@@ -164,62 +171,63 @@ export default function WorkspacePage() {
               <h3 className="font-semibold mb-4">支付状态</h3>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">项目预算</span>
-                  <span className="font-medium">¥{project.budget}</span>
+                  <span className="text-gray-600">任务价格</span>
+                  <span className="font-medium">¥{(taskData.price || 0) / 100}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">已支付</span>
-                  <span className="font-medium text-green-600">¥{project.paid}</span>
+                  <span className="text-gray-600">支付状态</span>
+                  <span className={`font-medium ${
+                    taskData.payment?.status === 'released' ? 'text-green-600' :
+                    taskData.payment?.status === 'held' ? 'text-blue-600' :
+                    'text-gray-600'
+                  }`}>
+                    {taskData.payment?.status === 'released' ? '已释放' :
+                     taskData.payment?.status === 'held' ? '托管中' :
+                     taskData.payment?.status === 'refunded' ? '已退款' : '待支付'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">待支付</span>
-                  <span className="font-medium text-orange-600">¥{project.budget - project.paid}</span>
-                </div>
-                <div className="pt-3 border-t">
-                  <button className="btn btn-primary w-full btn-sm">
-                    支付尾款
-                  </button>
+                  <span className="text-gray-600">平台服务费</span>
+                  <span className="font-medium">¥{(taskData.payment?.platformFee || 0) / 100}</span>
                 </div>
               </div>
             </div>
             
-            {/* 最新交付物 */}
+            {/* 交付物 */}
             <div className="card lg:col-span-3">
-              <h3 className="font-semibold mb-4">最新交付物</h3>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>文件名</th>
-                      <th>状态</th>
-                      <th>日期</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deliverables.map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name}</td>
-                        <td>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            item.status === '已完成' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        <td>{item.date}</td>
-                        <td>
-                          <button className="text-blue-600 hover:underline text-sm">
-                            下载
-                          </button>
-                        </td>
+              <h3 className="font-semibold mb-4">交付物</h3>
+              {deliverables.length > 0 ? (
+                <div className="table-container">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>创建者</th>
+                        <th>日期</th>
+                        <th>操作</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {deliverables.map((item: any) => (
+                        <tr key={item.id}>
+                          <td>{item.description || item.content?.substring(0, 30) || '-'}</td>
+                          <td>{item.type}</td>
+                          <td>{item.createdBy === 'ai' ? 'AI' : '真人'}</td>
+                          <td>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}</td>
+                          <td>
+                            <button className="text-blue-600 hover:underline text-sm">
+                              查看
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">暂无交付物</p>
+              )}
             </div>
           </div>
         )}
@@ -230,11 +238,11 @@ export default function WorkspacePage() {
               <div className="flex items-center justify-between mb-4 pb-4 border-b">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-lg">
-                    👨‍💼
+                    🤖
                   </div>
                   <div>
-                    <h3 className="font-semibold">与 {project.avatar.name} AI分身对话</h3>
-                    <span className="text-xs text-gray-500">项目: {project.name}</span>
+                    <h3 className="font-semibold">AI分身对话</h3>
+                    <span className="text-xs text-gray-500">项目: {taskData.title}</span>
                   </div>
                 </div>
                 <span className="text-sm text-green-600 flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full">
@@ -243,39 +251,27 @@ export default function WorkspacePage() {
               </div>
               
               <div className="flex-1 bg-gray-50 rounded-lg p-4 overflow-y-auto mb-4 space-y-4">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
-                    👨‍💼
+                {messages.length > 0 ? (
+                  messages.map((msg: any) => (
+                    <div key={msg.id} className={`flex gap-3 ${msg.role === 'client' ? 'justify-end' : ''}`}>
+                      {msg.role !== 'client' && (
+                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
+                          {msg.role === 'ai' ? '🤖' : '👤'}
+                        </div>
+                      )}
+                      <div className={`${msg.role === 'client' ? 'bg-blue-600 text-white' : 'bg-white'} rounded-lg p-3 max-w-[80%] shadow-sm`}>
+                        <p className="text-sm">{msg.content}</p>
+                        <span className={`text-xs mt-1 block ${msg.role === 'client' ? 'text-blue-200' : 'text-gray-400'}`}>
+                          {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-400">暂无对话记录</p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 max-w-[80%] shadow-sm">
-                    <p className="text-sm text-gray-800">您好！我是张明AI分身。我已了解您的项目需求，请问有什么我可以帮助您的？</p>
-                    <span className="text-xs text-gray-400 mt-1 block">10:30</span>
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 justify-end">
-                  <div className="bg-blue-600 text-white rounded-lg p-3 max-w-[80%] shadow-sm">
-                    <p className="text-sm">我想了解一下竞品分析的思路</p>
-                    <span className="text-xs text-blue-200 mt-1 block">10:32</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
-                    👨‍💼
-                  </div>
-                  <div className="bg-white rounded-lg p-3 max-w-[80%] shadow-sm">
-                    <p className="text-sm text-gray-800">好的，竞品分析一般包括以下几个步骤：</p>
-                    <ol className="text-sm text-gray-700 mt-2 space-y-1 list-decimal list-inside">
-                      <li>确定竞品范围（直接/间接/潜在）</li>
-                      <li>收集竞品信息（功能、定价、用户评价）</li>
-                      <li>分析优劣势（SWOT分析）</li>
-                      <li>总结差异化机会</li>
-                    </ol>
-                    <p className="text-sm text-gray-800 mt-2">您希望我针对哪个方面详细展开？</p>
-                    <span className="text-xs text-gray-400 mt-1 block">10:33</span>
-                  </div>
-                </div>
+                )}
               </div>
               
               <div className="border-t pt-4">
@@ -288,22 +284,11 @@ export default function WorkspacePage() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          // 发送消息逻辑
                         }
                       }}
                     />
-                    <button className="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                    </button>
                   </div>
-                  <button 
-                    className="btn btn-primary px-6 py-3 h-fit"
-                    onClick={() => {
-                      alert('消息已发送！');
-                    }}
-                  >
+                  <button className="btn btn-primary px-6 py-3 h-fit">
                     发送
                   </button>
                 </div>
@@ -316,50 +301,44 @@ export default function WorkspacePage() {
         {activeTab === 'files' && (
           <div className="card">
             <h3 className="font-semibold mb-4">交付物管理</h3>
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>文件名</th>
-                    <th>类型</th>
-                    <th>大小</th>
-                    <th>状态</th>
-                    <th>日期</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {deliverables.map((item) => (
-                    <tr key={item.id}>
-                      <td className="flex items-center gap-2">
-                        <span>📄</span>
-                        {item.name}
-                      </td>
-                      <td>PDF/Excel/Word</td>
-                      <td>2.5 MB</td>
-                      <td>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          item.status === '已完成' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-blue-100 text-blue-700'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td>{item.date}</td>
-                      <td>
-                        <button className="text-blue-600 hover:underline text-sm mr-3">
-                          下载
-                        </button>
-                        <button className="text-gray-600 hover:underline text-sm">
-                          预览
-                        </button>
-                      </td>
+            {deliverables.length > 0 ? (
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>名称</th>
+                      <th>类型</th>
+                      <th>创建者</th>
+                      <th>日期</th>
+                      <th>操作</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {deliverables.map((item: any) => (
+                      <tr key={item.id}>
+                        <td className="flex items-center gap-2">
+                          <span>📄</span>
+                          {item.description || item.content?.substring(0, 30) || '-'}
+                        </td>
+                        <td>{item.type}</td>
+                        <td>{item.createdBy === 'ai' ? 'AI' : '真人'}</td>
+                        <td>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}</td>
+                        <td>
+                          <button className="text-blue-600 hover:underline text-sm mr-3">
+                            下载
+                          </button>
+                          <button className="text-gray-600 hover:underline text-sm">
+                            预览
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">暂无交付物</p>
+            )}
           </div>
         )}
 
@@ -367,28 +346,39 @@ export default function WorkspacePage() {
           <div className="card">
             <h3 className="font-semibold mb-6">项目时间线</h3>
             <div className="space-y-6">
-              {timeline.map((item, index) => (
-                <div key={item.id} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                      item.type === 'milestone' ? 'bg-purple-100 text-purple-600' :
-                      item.type === 'deliverable' ? 'bg-green-100 text-green-600' :
-                      'bg-blue-100 text-blue-600'
-                    }`}>
-                      {item.type === 'milestone' ? '🏁' :
-                       item.type === 'deliverable' ? '📄' : '🤝'}
+              {[
+                { event: '项目创建', date: taskData.timeline?.createdAt, type: 'milestone', icon: '🏁' },
+                { event: 'AI处理完成', date: taskData.timeline?.aiCompletedAt, type: 'deliverable', icon: '📄' },
+                { event: '真人审核', date: taskData.timeline?.humanReviewAt, type: 'meeting', icon: '🤝' },
+                { event: '已交付', date: taskData.timeline?.deliveredAt, type: 'deliverable', icon: '📄' },
+                { event: '项目完成', date: taskData.timeline?.completedAt, type: 'milestone', icon: '🏁' },
+              ]
+                .filter(item => item.date)
+                .map((item, index, arr) => (
+                  <div key={index} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                        item.type === 'milestone' ? 'bg-purple-100 text-purple-600' :
+                        item.type === 'deliverable' ? 'bg-green-100 text-green-600' :
+                        'bg-blue-100 text-blue-600'
+                      }`}>
+                        {item.icon}
+                      </div>
+                      {index < arr.length - 1 && (
+                        <div className="w-0.5 h-12 bg-gray-200 mt-2" />
+                      )}
                     </div>
-                    {index < timeline.length - 1 && (
-                      <div className="w-0.5 h-12 bg-gray-200 mt-2" />
-                    )}
+                    <div className="flex-1 pb-6">
+                      <p className="font-medium">{item.event}</p>
+                      <p className="text-sm text-gray-500">{new Date(item.date!).toLocaleString()}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 pb-6">
-                    <p className="font-medium">{item.event}</p>
-                    <p className="text-sm text-gray-500">{item.date}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              }
             </div>
+            {!taskData.timeline?.createdAt && (
+              <p className="text-gray-500 text-center py-8">暂无时间线记录</p>
+            )}
           </div>
         )}
       </div>
