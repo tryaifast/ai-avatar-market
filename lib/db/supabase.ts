@@ -2,10 +2,19 @@
 // ============================================
 // AI Avatar Market - Supabase Data Layer
 // 替换原有的文件存储，使用Supabase PostgreSQL
+//
+// 关键规则：
+// - 读操作：使用 anon key 的 supabase 客户端（受 RLS 保护）
+// - 写操作：使用 service role 客户端（绕过 RLS，仅限 server-side API route）
 // ============================================
 
 import { supabase, createServiceClient } from '../supabase/client';
 import { User, Avatar, Task, Message, Review, Notification, CreatorDashboard } from '../types';
+
+// 获取 service role 客户端（用于写操作，绕过 RLS）
+function getAdminClient() {
+  return createServiceClient();
+}
 
 // ============================================
 // 用户操作
@@ -40,7 +49,8 @@ export const UserDB = {
       bio: user.bio,
     };
 
-    const { data, error } = await (supabase as any).from('users').insert(dbUser).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('users').insert(dbUser).select().single();
     if (error) throw error;
     return this.toUser(data);
   },
@@ -54,7 +64,8 @@ export const UserDB = {
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
 
-    const { data, error } = await (supabase as any).from('users').update(dbUpdates).eq('id', id).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('users').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
@@ -148,7 +159,8 @@ export const AvatarDB = {
       status: avatar.status,
     };
 
-    const { data, error } = await (supabase as any).from('avatars').insert(dbAvatar).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('avatars').insert(dbAvatar).select().single();
     if (error) throw error;
     return this.toAvatar(data);
   },
@@ -166,13 +178,14 @@ export const AvatarDB = {
       if (updates.personality.expertise !== undefined) dbUpdates.personality_expertise = updates.personality.expertise;
     }
 
-    const { data, error } = await (supabase as any).from('avatars').update(dbUpdates).eq('id', id).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('avatars').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toAvatar(data);
   },
 
   async search(query: string, filters?: { identity?: string; expertise?: string[] }): Promise<Avatar[]> {
-    let qb = (supabase as any).from('avatars').select('*').eq('status', 'active');
+    let qb = supabase.from('avatars').select('*').eq('status', 'active');
 
     if (query) {
       qb = qb.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
@@ -297,7 +310,8 @@ export const TaskDB = {
       status: task.status,
     };
 
-    const { data, error } = await supabase.from('tasks').insert(dbTask).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('tasks').insert(dbTask).select().single();
     if (error) throw error;
     return this.toTask(data);
   },
@@ -308,7 +322,8 @@ export const TaskDB = {
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
 
-    const { data, error } = await (supabase as any).from('tasks').update(dbUpdates).eq('id', id).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('tasks').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toTask(data);
   },
@@ -382,7 +397,8 @@ export const MessageDB = {
       attachments: message.attachments || [],
     };
 
-    const { data, error } = await (supabase as any).from('messages').insert(dbMessage).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('messages').insert(dbMessage).select().single();
     if (error) throw error;
     return this.toMessage(data);
   },
@@ -428,7 +444,8 @@ export const ReviewDB = {
       tags: review.tags || [],
     };
 
-    const { data, error } = await (supabase as any).from('reviews').insert(dbReview).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('reviews').insert(dbReview).select().single();
     if (error) throw error;
     return this.toReview(data);
   },
@@ -479,13 +496,15 @@ export const NotificationDB = {
       data: notification.data || {},
     };
 
-    const { data, error } = await supabase.from('notifications').insert(dbNotification).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('notifications').insert(dbNotification).select().single();
     if (error) throw error;
     return this.toNotification(data);
   },
 
   async markAsRead(id: string): Promise<void> {
-    await supabase.from('notifications').update({ read: true }).eq('id', id);
+    const admin = getAdminClient();
+    await admin.from('notifications').update({ read: true }).eq('id', id);
   },
 
   toNotification(data: any): Notification {
@@ -513,7 +532,7 @@ export const DashboardDB = {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const todayTasks = tasks.filter(t => t.timeline.createdAt.startsWith(today));
+    const todayTasks = tasks.filter(t => t.timeline.createdAt?.startsWith(today));
     const weekTasks = tasks.filter(t => t.timeline.createdAt > weekAgo);
     const monthTasks = tasks.filter(t => t.timeline.createdAt > monthAgo);
 
@@ -574,13 +593,15 @@ export const CreatorApplicationDB = {
   },
 
   async create(application: any): Promise<any> {
-    const { data, error } = await (supabase as any).from('creator_applications').insert(application).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('creator_applications').insert(application).select().single();
     if (error) throw error;
     return data;
   },
 
   async update(id: string, updates: any): Promise<any | undefined> {
-    const { data, error } = await (supabase as any).from('creator_applications').update(updates).eq('id', id).select().single();
+    const admin = getAdminClient();
+    const { data, error } = await admin.from('creator_applications').update(updates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return data;
   },
