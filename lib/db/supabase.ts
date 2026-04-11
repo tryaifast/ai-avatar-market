@@ -4,36 +4,35 @@
 // 替换原有的文件存储，使用Supabase PostgreSQL
 //
 // 关键规则：
-// - 读操作：使用 anon key 的 supabase 客户端（受 RLS 保护）
-// - 写操作：使用 service role 客户端（绕过 RLS，仅限 server-side API route）
+// - 所有操作统一使用 service role 客户端
+// - 因为这些代码只在 server-side API route 中运行
+// - RLS 策略会阻止 anon key 的查询，导致登录等功能失败
 // ============================================
 
-import { supabase, createServiceClient } from '../supabase/client';
+import { createServiceClient } from '../supabase/client';
 import { User, Avatar, Task, Message, Review, Notification, CreatorDashboard } from '../types';
 
-// 获取 service role 客户端（用于写操作，绕过 RLS）
-function getAdminClient() {
-  return createServiceClient();
-}
+// 统一使用 service role 客户端（绕过 RLS，仅限 server-side API route）
+const db = createServiceClient();
 
 // ============================================
 // 用户操作
 // ============================================
 export const UserDB = {
   async getAll(): Promise<User[]> {
-    const { data, error } = await supabase.from('users').select('*');
+    const { data, error } = await db.from('users').select('*');
     if (error) throw error;
     return data?.map(this.toUser) || [];
   },
 
   async getById(id: string): Promise<User | undefined> {
-    const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+    const { data, error } = await db.from('users').select('*').eq('id', id).single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
 
   async getByEmail(email: string): Promise<User | undefined> {
-    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+    const { data, error } = await db.from('users').select('*').eq('email', email).single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
@@ -49,8 +48,7 @@ export const UserDB = {
       bio: user.bio,
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('users').insert(dbUser).select().single();
+    const { data, error } = await db.from('users').insert(dbUser).select().single();
     if (error) throw error;
     return this.toUser(data);
   },
@@ -62,10 +60,10 @@ export const UserDB = {
     if (updates.bio !== undefined) dbUpdates.bio = updates.bio;
     if (updates.identity !== undefined) dbUpdates.identity = updates.identity;
     if (updates.role !== undefined) dbUpdates.role = updates.role;
+    if (updates.password !== undefined) dbUpdates.password = updates.password;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('users').update(dbUpdates).eq('id', id).select().single();
+    const { data, error } = await db.from('users').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
@@ -109,25 +107,25 @@ export const UserDB = {
 // ============================================
 export const AvatarDB = {
   async getAll(): Promise<Avatar[]> {
-    const { data, error } = await supabase.from('avatars').select('*');
+    const { data, error } = await db.from('avatars').select('*');
     if (error) throw error;
     return data?.map(this.toAvatar) || [];
   },
 
   async getById(id: string): Promise<Avatar | undefined> {
-    const { data, error } = await supabase.from('avatars').select('*').eq('id', id).single();
+    const { data, error } = await db.from('avatars').select('*').eq('id', id).single();
     if (error || !data) return undefined;
     return this.toAvatar(data);
   },
 
   async getByCreator(creatorId: string): Promise<Avatar[]> {
-    const { data, error } = await supabase.from('avatars').select('*').eq('creator_id', creatorId);
+    const { data, error } = await db.from('avatars').select('*').eq('creator_id', creatorId);
     if (error) throw error;
     return data?.map(this.toAvatar) || [];
   },
 
   async getActive(): Promise<Avatar[]> {
-    const { data, error } = await supabase.from('avatars').select('*').eq('status', 'active');
+    const { data, error } = await db.from('avatars').select('*').eq('status', 'active');
     if (error) throw error;
     return data?.map(this.toAvatar) || [];
   },
@@ -159,8 +157,7 @@ export const AvatarDB = {
       status: avatar.status,
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('avatars').insert(dbAvatar).select().single();
+    const { data, error } = await db.from('avatars').insert(dbAvatar).select().single();
     if (error) throw error;
     return this.toAvatar(data);
   },
@@ -178,14 +175,13 @@ export const AvatarDB = {
       if (updates.personality.expertise !== undefined) dbUpdates.personality_expertise = updates.personality.expertise;
     }
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('avatars').update(dbUpdates).eq('id', id).select().single();
+    const { data, error } = await db.from('avatars').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toAvatar(data);
   },
 
   async search(query: string, filters?: { identity?: string; expertise?: string[] }): Promise<Avatar[]> {
-    let qb = supabase.from('avatars').select('*').eq('status', 'active');
+    let qb = db.from('avatars').select('*').eq('status', 'active');
 
     if (query) {
       qb = qb.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
@@ -252,37 +248,37 @@ export const AvatarDB = {
 // ============================================
 export const TaskDB = {
   async getAll(): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*');
+    const { data, error } = await db.from('tasks').select('*');
     if (error) throw error;
     return data?.map(this.toTask) || [];
   },
 
   async getById(id: string): Promise<Task | undefined> {
-    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
+    const { data, error } = await db.from('tasks').select('*').eq('id', id).single();
     if (error || !data) return undefined;
     return this.toTask(data);
   },
 
   async getByClient(clientId: string): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*').eq('client_id', clientId);
+    const { data, error } = await db.from('tasks').select('*').eq('client_id', clientId);
     if (error) throw error;
     return data?.map(this.toTask) || [];
   },
 
   async getByCreator(creatorId: string): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*').eq('creator_id', creatorId);
+    const { data, error } = await db.from('tasks').select('*').eq('creator_id', creatorId);
     if (error) throw error;
     return data?.map(this.toTask) || [];
   },
 
   async getByAvatar(avatarId: string): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*').eq('avatar_id', avatarId);
+    const { data, error } = await db.from('tasks').select('*').eq('avatar_id', avatarId);
     if (error) throw error;
     return data?.map(this.toTask) || [];
   },
 
   async getPendingReview(creatorId: string): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*')
+    const { data, error } = await db.from('tasks').select('*')
       .eq('creator_id', creatorId)
       .eq('status', 'ai_completed');
     if (error) throw error;
@@ -290,7 +286,7 @@ export const TaskDB = {
   },
 
   async getActive(creatorId: string): Promise<Task[]> {
-    const { data, error } = await supabase.from('tasks').select('*')
+    const { data, error } = await db.from('tasks').select('*')
       .eq('creator_id', creatorId)
       .in('status', ['ai_working', 'human_reviewing', 'human_revising', 'delivered']);
     if (error) throw error;
@@ -310,8 +306,7 @@ export const TaskDB = {
       status: task.status,
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('tasks').insert(dbTask).select().single();
+    const { data, error } = await db.from('tasks').insert(dbTask).select().single();
     if (error) throw error;
     return this.toTask(data);
   },
@@ -322,8 +317,7 @@ export const TaskDB = {
     if (updates.title !== undefined) dbUpdates.title = updates.title;
     if (updates.description !== undefined) dbUpdates.description = updates.description;
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('tasks').update(dbUpdates).eq('id', id).select().single();
+    const { data, error } = await db.from('tasks').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toTask(data);
   },
@@ -384,7 +378,7 @@ export const TaskDB = {
 // ============================================
 export const MessageDB = {
   async getByTask(taskId: string): Promise<Message[]> {
-    const { data, error } = await supabase.from('messages').select('*').eq('task_id', taskId).order('timestamp');
+    const { data, error } = await db.from('messages').select('*').eq('task_id', taskId).order('timestamp');
     if (error) throw error;
     return data?.map(this.toMessage) || [];
   },
@@ -397,8 +391,7 @@ export const MessageDB = {
       attachments: message.attachments || [],
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('messages').insert(dbMessage).select().single();
+    const { data, error } = await db.from('messages').insert(dbMessage).select().single();
     if (error) throw error;
     return this.toMessage(data);
   },
@@ -420,13 +413,13 @@ export const MessageDB = {
 // ============================================
 export const ReviewDB = {
   async getByTask(taskId: string): Promise<Review | undefined> {
-    const { data, error } = await supabase.from('reviews').select('*').eq('task_id', taskId).single();
+    const { data, error } = await db.from('reviews').select('*').eq('task_id', taskId).single();
     if (error || !data) return undefined;
     return this.toReview(data);
   },
 
   async getByTarget(targetId: string, targetType: 'avatar' | 'client'): Promise<Review[]> {
-    const { data, error } = await supabase.from('reviews').select('*')
+    const { data, error } = await db.from('reviews').select('*')
       .eq('target_id', targetId)
       .eq('target_type', targetType);
     if (error) throw error;
@@ -444,8 +437,7 @@ export const ReviewDB = {
       tags: review.tags || [],
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('reviews').insert(dbReview).select().single();
+    const { data, error } = await db.from('reviews').insert(dbReview).select().single();
     if (error) throw error;
     return this.toReview(data);
   },
@@ -470,7 +462,7 @@ export const ReviewDB = {
 // ============================================
 export const NotificationDB = {
   async getByUser(userId: string): Promise<Notification[]> {
-    const { data, error } = await supabase.from('notifications').select('*')
+    const { data, error } = await db.from('notifications').select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw error;
@@ -478,7 +470,7 @@ export const NotificationDB = {
   },
 
   async getUnread(userId: string): Promise<Notification[]> {
-    const { data, error } = await supabase.from('notifications').select('*')
+    const { data, error } = await db.from('notifications').select('*')
       .eq('user_id', userId)
       .eq('read', false)
       .order('created_at', { ascending: false });
@@ -496,15 +488,13 @@ export const NotificationDB = {
       data: notification.data || {},
     };
 
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('notifications').insert(dbNotification).select().single();
+    const { data, error } = await db.from('notifications').insert(dbNotification).select().single();
     if (error) throw error;
     return this.toNotification(data);
   },
 
   async markAsRead(id: string): Promise<void> {
-    const admin = getAdminClient();
-    await admin.from('notifications').update({ read: true }).eq('id', id);
+    await db.from('notifications').update({ read: true }).eq('id', id);
   },
 
   toNotification(data: any): Notification {
@@ -577,13 +567,13 @@ export const DashboardDB = {
 // ============================================
 export const CreatorApplicationDB = {
   async getAll(): Promise<any[]> {
-    const { data, error } = await supabase.from('creator_applications').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('creator_applications').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },
 
   async getByUserId(userId: string): Promise<any | undefined> {
-    const { data, error } = await supabase.from('creator_applications').select('*')
+    const { data, error } = await db.from('creator_applications').select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -593,15 +583,13 @@ export const CreatorApplicationDB = {
   },
 
   async create(application: any): Promise<any> {
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('creator_applications').insert(application).select().single();
+    const { data, error } = await db.from('creator_applications').insert(application).select().single();
     if (error) throw error;
     return data;
   },
 
   async update(id: string, updates: any): Promise<any | undefined> {
-    const admin = getAdminClient();
-    const { data, error } = await admin.from('creator_applications').update(updates).eq('id', id).select().single();
+    const { data, error } = await db.from('creator_applications').update(updates).eq('id', id).select().single();
     if (error || !data) return undefined;
     return data;
   },
