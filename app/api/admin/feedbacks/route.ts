@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 更新留言状态
-    const { data: feedback, error: updateError } = await DB.db
+    const { data: feedback, error: updateError } = await (DB.db
       .from('feedbacks')
       .update({
         status: 'replied',
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', feedbackId)
       .select()
-      .single();
+      .single() as any);
 
     if (updateError) throw updateError;
 
