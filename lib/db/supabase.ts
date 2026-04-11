@@ -53,7 +53,7 @@ export const UserDB = {
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
 
-    const { data, error } = await supabase.from('users').update(dbUpdates).eq('id', id).select().single();
+    const { data, error } = await supabase.from('users').update(dbUpdates as any).eq('id', id).select().single();
     if (error || !data) return undefined;
     return this.toUser(data);
   },
