@@ -35,8 +35,15 @@ export default function CreatorPage({ params }: { params: { id: string } }) {
     rating: firstAvatar.stats?.rating || firstAvatar.rating || 0,
     totalHires: firstAvatar.stats?.hiredCount || firstAvatar.hireCount || 0,
     reviewCount: firstAvatar.stats?.reviewCount || firstAvatar.reviewCount || 0,
+    responseTime: firstAvatar.scope?.responseTime || '平均2小时内',
+    completionRate: firstAvatar.stats?.completedTasks ? Math.round((firstAvatar.stats.completedTasks / (firstAvatar.stats.hiredCount || 1)) * 100) : 95,
+    joinDate: firstAvatar.createdAt ? new Date(firstAvatar.createdAt).toISOString().slice(0, 7) : '2024-01',
     skills: firstAvatar.personality?.expertise || firstAvatar.tags || [],
-    avatars: creatorAvatars,
+    resume: {
+      education: '',
+      experience: [] as string[],
+      certifications: [] as string[],
+    },
   } : null;
 
   if (isLoading) {
