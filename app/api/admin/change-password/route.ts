@@ -11,18 +11,10 @@ import { verifyAuth } from '@/lib/auth';
 export async function POST(req: NextRequest) {
   try {
     // 验证当前用户身份
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-
-    const currentUser = await verifyAuth(token);
+    const currentUser = await verifyAuth(req);
     if (!currentUser) {
       return NextResponse.json(
-        { error: 'Invalid token' },
+        { error: 'Authentication required' },
         { status: 401 }
       );
     }
