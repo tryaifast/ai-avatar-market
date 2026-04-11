@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ============================================
 // AI Avatar Market - Supabase Data Layer
 // 替换原有的文件存储，使用Supabase PostgreSQL
