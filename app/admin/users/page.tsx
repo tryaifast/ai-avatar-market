@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 // 用户管理页面 - 从API获取真实用户数据
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'creator' | 'client'>('all');
+  const [filter, setFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { user: currentUser, token } = useAuth();
+  
+  // 修改密码弹窗状态
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -42,6 +53,77 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       console.error('Failed to update user:', error);
+    }
+  };
+
+  // 打开修改密码弹窗
+  const openPasswordModal = (user: any) => {
+    setSelectedUser(user);
+    setNewPassword('');
+    setCurrentPassword('');
+    setPasswordError('');
+    setPasswordSuccess('');
+    setShowPasswordModal(true);
+  };
+
+  // 关闭修改密码弹窗
+  const closePasswordModal = () => {
+    setShowPasswordModal(false);
+    setSelectedUser(null);
+    setNewPassword('');
+    setCurrentPassword('');
+    setPasswordError('');
+    setPasswordSuccess('');
+  };
+
+  // 提交修改密码
+  const handleChangePassword = async () => {
+    if (!selectedUser || !newPassword) return;
+    
+    // 验证密码长度
+    if (newPassword.length < 6) {
+      setPasswordError('新密码至少6位');
+      return;
+    }
+
+    // 如果是修改自己的密码，需要当前密码
+    if (selectedUser.id === currentUser?.id && !currentPassword) {
+      setPasswordError('请输入当前密码');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    try {
+      const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          newPassword,
+          currentPassword: selectedUser.id === currentUser?.id ? currentPassword : undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setPasswordSuccess('密码修改成功！');
+        setTimeout(() => {
+          closePasswordModal();
+        }, 1500);
+      } else {
+        setPasswordError(data.error || '修改失败');
+      }
+    } catch (error) {
+      setPasswordError('网络错误，请重试');
+    } finally {
+      setIsChangingPassword(false);
     }
   };
 
@@ -82,6 +164,7 @@ export default function AdminUsersPage() {
             <option value="all">全部用户</option>
             <option value="creator">创作者</option>
             <option value="client">需求方</option>
+            <option value="admin">管理员</option>
           </select>
         </div>
 
@@ -115,9 +198,12 @@ export default function AdminUsersPage() {
                       </td>
                       <td>
                         <span className={`px-2 py-1 rounded-full text-xs ${
+                          user.role === 'admin' ? 'bg-red-100 text-red-700' :
                           user.role === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                         }`}>
-                          {user.role === 'creator' ? '创作者' : user.role === 'client' ? '需求方' : user.role}
+                          {user.role === 'admin' ? '管理员' : 
+                           user.role === 'creator' ? '创作者' : 
+                           user.role === 'client' ? '需求方' : user.role}
                         </span>
                       </td>
                       <td>
@@ -136,6 +222,12 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-2">
                           <button className="text-blue-600 hover:underline text-sm">
                             查看
+                          </button>
+                          <button
+                            onClick={() => openPasswordModal(user)}
+                            className="text-orange-600 hover:underline text-sm"
+                          >
+                            改密码
                           </button>
                           {user.onboardingStatus !== 'banned' && (
                             <button
@@ -165,6 +257,69 @@ export default function AdminUsersPage() {
           )}
         </div>
       </div>
+
+      {/* 修改密码弹窗 */}
+      {showPasswordModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-bold mb-4">
+              修改密码 - {selectedUser.name}
+            </h2>
+            
+            {selectedUser.id === currentUser?.id && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  当前密码
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="请输入当前密码"
+                  className="input w-full"
+                />
+              </div>
+            )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                新密码
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="请输入新密码（至少6位）"
+                className="input w-full"
+              />
+            </div>
+
+            {passwordError && (
+              <p className="text-red-600 text-sm mb-4">{passwordError}</p>
+            )}
+            {passwordSuccess && (
+              <p className="text-green-600 text-sm mb-4">{passwordSuccess}</p>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={closePasswordModal}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                disabled={isChangingPassword}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleChangePassword}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                disabled={isChangingPassword || !newPassword}
+              >
+                {isChangingPassword ? '修改中...' : '确认修改'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
