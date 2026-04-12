@@ -319,7 +319,6 @@ export default function CreatorDetailClient({ creator, avatars }: CreatorDetailC
             </div>
           </div>
         )}
-      </div>
 
       {/* Contact Modal */}
       {showContactModal && (

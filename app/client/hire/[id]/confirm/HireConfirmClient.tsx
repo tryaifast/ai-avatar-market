@@ -221,7 +221,6 @@ export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

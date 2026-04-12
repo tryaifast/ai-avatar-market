@@ -79,7 +79,6 @@ export default function WorkspacePage() {
             </div>
           </div>
         </div>
-      </div>
         {/* Tab 导航 */}
         <div className="tabs mb-6">
           <button

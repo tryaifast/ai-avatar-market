@@ -47,7 +47,6 @@ export function HirePageClient({ avatarId }: HirePageClientProps) {
             </button>
           </div>
         </div>
-      </div>
     </div>
   );
 }
