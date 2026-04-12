@@ -293,6 +293,48 @@ if (!user || user.role !== 'admin') return 403;
 **参考**: [Zustand Discussion #1572](https://github.com/pmndrs/zustand/discussions/1572)
 **文件**: `lib/store/index.ts` — 两个 store（useAuthStore + useAdminAuthStore）都修复
 
+### Phase 15: 入驻流程全面修复 + AvatarAnalytics 崩溃 (2026-04-12) ✅
+
+#### 修复内容汇总
+
+**Bug1: AvatarAnalyticsClient toLocaleString 崩溃**
+- **现象**: 点击"我的分身→查看"报错 `Cannot read properties of undefined (reading 'toLocaleString')`
+- **根因**: `views` 变量从 `stats.hiredCount` 取值，`stats` 为空对象时 `hiredCount` 为 `undefined`，调用 `.toLocaleString()` 报错
+- **修复**: 所有数值字段用 `Number()` 包裹 + 默认值 `0`
+- **文件**: `app/creator/avatars/[id]/AvatarAnalyticsClient.tsx`
+
+**Bug2: Dashboard 未入驻时无提示 + 可直接创建分身**
+- **现象**: 未入驻用户在 Dashboard 可直接点击"创建新分身"
+- **修复**: 添加入驻提示横幅 + 根据入驻状态切换按钮（"申请入驻" vs "创建新分身"）
+- **文件**: `app/creator/dashboard/page.tsx`
+
+**Bug3: 入驻申请提交字段名不匹配（驼峰 vs 下划线）**
+- **现象**: 入驻申请提交成功但数据库字段为空（字段名映射错误）
+- **根因**: 前端提交驼峰命名（`userId`, `realName`），但 Supabase 表用下划线命名（`user_id`, `real_name`）
+- **修复**: POST API 中显式映射字段名
+- **文件**: `app/api/creator-applications/route.ts`
+
+**Bug4: 审核通过后未更新 user.onboardingStatus**
+- **现象**: 管理员审核通过入驻申请后，用户状态未变
+- **修复**: 审核 approved/rejected 时同步更新 `users.onboarding_status` + `role`
+- **文件**: `app/api/admin/applications/[id]/route.ts`, `app/api/creator-applications/[id]/route.ts`
+
+**Bug5: creator-applications API 缺少认证验证**
+- **现象**: 任何人都能 GET/POST 入驻申请，无认证检查
+- **修复**: GET 和 POST 都添加 `verifyAuth` 验证，非管理员只能看自己的申请
+- **文件**: `app/api/creator-applications/route.ts`, `app/api/creator-applications/[id]/route.ts`
+
+**Bug6: 审核管理默认显示分身而非入驻申请**
+- **修复**: 默认 Tab 改为 `applications`
+- **文件**: `app/admin/reviews/page.tsx`
+
+**补充修复**:
+- `toUser()` 映射添加 `onboardingStatus` 字段
+- 创建 SQL 迁移文件 `supabase/migrations/add_onboarding_status.sql`
+- `onboarding/status` 页面改用 `useApplicationStore` 获取真实数据
+- 修复错误链接 `avatars/create` → `avatar/create`
+- 添加 `pending` 状态到 statusConfig
+
 ---
 
 ## 当前功能状态
