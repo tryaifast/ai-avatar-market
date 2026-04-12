@@ -63,6 +63,14 @@
 - [x] 创作者中心改用真实数据（原使用mock数据）
 - [x] 修复 `verifyAuth` 支持cookie认证 - 解决管理员消息发送提示登录问题
 - [x] 创建AI配置管理功能（数据库表、API、管理页面）
+
+### Phase 7: 认证系统修复 (2026-04-12) ✅
+- [x] 管理员/用户认证独立 - `useAdminAuthStore`(admin-auth-storage) / `useAuthStore`(auth-storage)
+- [x] AdminAuthStore 添加 `token` 字段 - 登录时保存JWT token
+- [x] 创建 `adminFetch()` 辅助函数 - 自动从localStorage读取token并添加Authorization header
+- [x] 所有4个管理员页面12处fetch调用改用 `adminFetch()`
+- [x] 创作者中心添加hydration等待 - 防止Zustand persist未恢复时跳转登录页
+- [x] 修复 `fetchTasks(userId, type)` 参数错误（2个参数，之前传0/1个）
 - [x] 修复创建分身使用真实API调用
 - [x] 修复分身状态显示（支持 pending 审核中状态）
 
