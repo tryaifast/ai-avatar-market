@@ -1,24 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useAuthHydrated, authFetch } from '@/lib/store';
 import Link from 'next/link';
 
 // 用户消息收件箱页面
 export default function MessagesPage() {
   const user = useAuthStore((s) => s.user);
+  const { isHydrated, isAuthenticated } = useAuthHydrated();
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 获取消息列表
+  // 获取消息列表 - 等待hydration完成后再fetch
   useEffect(() => {
-    fetchMessages();
-  }, []);
+    if (isHydrated && isAuthenticated) {
+      fetchMessages();
+    } else if (isHydrated && !isAuthenticated) {
+      setIsLoading(false);
+    }
+  }, [isHydrated, isAuthenticated]);
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch('/api/messages');
+      const res = await authFetch('/api/messages');
       const data = await res.json();
       if (data.success) {
         setMessages(data.messages || []);
@@ -33,9 +38,8 @@ export default function MessagesPage() {
 
   const markAsRead = async (messageId: string) => {
     try {
-      const res = await fetch('/api/messages', {
+      const res = await authFetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messageId }),
       });
 
@@ -49,9 +53,8 @@ export default function MessagesPage() {
 
   const markAllAsRead = async () => {
     try {
-      const res = await fetch('/api/messages', {
+      const res = await authFetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markAll: true }),
       });
 
@@ -67,7 +70,7 @@ export default function MessagesPage() {
     if (!confirm('确定删除这条消息？')) return;
 
     try {
-      const res = await fetch(`/api/messages?id=${messageId}`, {
+      const res = await authFetch(`/api/messages?id=${messageId}`, {
         method: 'DELETE',
       });
 
@@ -125,7 +128,14 @@ export default function MessagesPage() {
 
         {/* 消息列表 */}
         <div className="bg-white rounded-lg shadow">
-          {isLoading ? (
+          {!isAuthenticated && isHydrated ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">请先登录查看消息</p>
+              <Link href="/auth/login" className="text-blue-600 hover:underline">
+                去登录
+              </Link>
+            </div>
+          ) : isLoading ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>

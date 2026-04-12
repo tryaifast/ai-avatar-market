@@ -48,8 +48,16 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('Submit feedback error:', error);
+    const isTableMissing = error?.message?.includes('does not exist') || 
+                           error?.code === '42P01' ||
+                           error?.message?.includes('relation');
     return NextResponse.json(
-      { error: error.message || '提交失败' },
+      { 
+        error: isTableMissing 
+          ? '反馈表尚未创建，请在 Supabase Dashboard 执行 feedback_schema.sql' 
+          : (error.message || '提交失败'),
+        debug: isTableMissing ? { hint: 'Run supabase/feedback_schema.sql in Supabase SQL Editor' } : undefined,
+      },
       { status: 500 }
     );
   }

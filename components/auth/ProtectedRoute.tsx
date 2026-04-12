@@ -11,11 +11,13 @@ interface ProtectedRouteProps {
 /**
  * 用户路由保护组件
  * - 使用 useAuthStore._hasHydrated 精确等待 Zustand persist hydration 完成
- * - 不再依赖 setTimeout 猜测，彻底解决刷新后误判未登录的问题
+ * - 同时检查 user、token 和 isAuthenticated 三个条件
+ * - token 为空说明认证无效，不能放行
  * - 未登录 → 跳转到 /auth/login
  */
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isHydrated = useAuthStore((s) => s._hasHydrated);
   const router = useRouter();
@@ -26,12 +28,18 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!isHydrated) return; // 还在 hydrating，等等
 
     // hydration 完成了，现在可以安全判断
-    if (!user || !isAuthenticated) {
+    // 三重检查：user存在 + token存在 + isAuthenticated为true
+    if (!user || !token || !isAuthenticated) {
+      console.warn('[ProtectedRoute] 认证检查失败:', {
+        hasUser: !!user,
+        hasToken: !!token,
+        isAuthenticated,
+      });
       router.replace('/auth/login');
       return;
     }
     setChecked(true);
-  }, [isHydrated, user, isAuthenticated, router]);
+  }, [isHydrated, user, token, isAuthenticated, router]);
 
   // 等待 hydration 或权限检查
   if (!isHydrated || !checked) {

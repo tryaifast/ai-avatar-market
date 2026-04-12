@@ -2,19 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useTaskStore, useAuthStore } from '@/lib/store';
+import { useTaskStore, useAuthStore, useAuthHydrated } from '@/lib/store';
 
 // 项目工作区 - 客户端组件
 export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'files' | 'timeline'>('overview');
   const { tasks, currentTask, fetchTasks, fetchTaskById, isLoading: taskLoading } = useTaskStore();
   const { user } = useAuthStore();
+  const { isHydrated, isAuthenticated } = useAuthHydrated();
 
   useEffect(() => {
-    if (user?.id) {
+    // 等待 hydration 完成且有用户才 fetch
+    if (isHydrated && isAuthenticated && user?.id) {
       fetchTasks(user.id, 'client');
     }
-  }, [user?.id, fetchTasks]);
+  }, [isHydrated, isAuthenticated, user?.id, fetchTasks]);
 
   // 使用第一个任务作为当前展示项目（如果有URL参数可改为具体任务）
   const project = currentTask || tasks[0];

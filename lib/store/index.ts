@@ -262,7 +262,7 @@ export const useAvatarStore = create<AvatarState>()((set, get) => ({
     set({ isLoading: true });
     try {
       const url = query ? `/api/avatars?q=${encodeURIComponent(query)}` : '/api/avatars';
-      const res = await fetch(url);
+      const res = await fetch(url); // 市场列表不需要认证
       const data = await res.json();
       
       if (data.success) {
@@ -276,7 +276,7 @@ export const useAvatarStore = create<AvatarState>()((set, get) => ({
   fetchAvatarById: async (id: string) => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`/api/avatars/${id}`);
+      const res = await fetch(`/api/avatars/${id}`); // 公开查看不需要认证
       const data = await res.json();
       
       if (data.success) {
@@ -289,9 +289,8 @@ export const useAvatarStore = create<AvatarState>()((set, get) => ({
 
   createAvatar: async (data) => {
     try {
-      const res = await fetch('/api/avatars', {
+      const res = await authFetch('/api/avatars', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -309,9 +308,8 @@ export const useAvatarStore = create<AvatarState>()((set, get) => ({
 
   updateAvatar: async (id, data) => {
     try {
-      const res = await fetch(`/api/avatars/${id}`, {
+      const res = await authFetch(`/api/avatars/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -359,7 +357,7 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
   fetchTasks: async (userId, type) => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`/api/tasks?userId=${userId}&type=${type}`);
+      const res = await authFetch(`/api/tasks?userId=${userId}&type=${type}`);
       const data = await res.json();
       
       if (data.success) {
@@ -373,7 +371,7 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
   fetchTaskById: async (id) => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`/api/tasks/${id}`);
+      const res = await authFetch(`/api/tasks/${id}`);
       const data = await res.json();
       
       if (data.success) {
@@ -386,9 +384,8 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
 
   createTask: async (data) => {
     try {
-      const res = await fetch('/api/tasks', {
+      const res = await authFetch('/api/tasks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -406,9 +403,8 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
 
   updateTask: async (id, data) => {
     try {
-      const res = await fetch(`/api/tasks/${id}`, {
+      const res = await authFetch(`/api/tasks/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -429,9 +425,8 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
 
   sendMessage: async (taskId, content, history = []) => {
     try {
-      const res = await fetch('/api/chat', {
+      const res = await authFetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskId, content, history }),
       });
 
@@ -454,7 +449,7 @@ export const useTaskStore = create<TaskState>()((set, get) => ({
 
   processAITask: async (taskId) => {
     try {
-      const res = await fetch(`/api/tasks/${taskId}/process`, {
+      const res = await authFetch(`/api/tasks/${taskId}/process`, {
         method: 'POST',
       });
 
@@ -494,7 +489,7 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
     set({ isLoading: true });
     try {
       const url = status ? `/api/creator-applications?status=${status}` : '/api/creator-applications';
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const data = await res.json();
       
       if (data.success) {
@@ -508,7 +503,7 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
   fetchMyApplication: async (userId) => {
     set({ isLoading: true });
     try {
-      const res = await fetch(`/api/creator-applications?userId=${userId}`);
+      const res = await authFetch(`/api/creator-applications?userId=${userId}`);
       const data = await res.json();
       
       if (data.success && data.applications.length > 0) {
@@ -523,9 +518,8 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
 
   submitApplication: async (data) => {
     try {
-      const res = await fetch('/api/creator-applications', {
+      const res = await authFetch('/api/creator-applications', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
@@ -543,9 +537,8 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
 
   reviewApplication: async (id, status, reviewNotes, reviewedBy) => {
     try {
-      const res = await fetch(`/api/creator-applications/${id}`, {
+      const res = await authFetch(`/api/creator-applications/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, reviewNotes, reviewedBy }),
       });
 

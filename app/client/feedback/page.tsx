@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useAuthHydrated, authFetch } from '@/lib/store';
 import Link from 'next/link';
 
 // 用户留言反馈页面
 export default function FeedbackPage() {
   const user = useAuthStore((s) => s.user);
+  const { isHydrated, isAuthenticated } = useAuthHydrated();
   const [type, setType] = useState('general');
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -15,14 +16,18 @@ export default function FeedbackPage() {
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 获取历史留言
+  // 获取历史留言 - 等待hydration完成后再fetch
   useEffect(() => {
-    fetchFeedbacks();
-  }, []);
+    if (isHydrated && isAuthenticated) {
+      fetchFeedbacks();
+    } else if (isHydrated && !isAuthenticated) {
+      setIsLoading(false);
+    }
+  }, [isHydrated, isAuthenticated]);
 
   const fetchFeedbacks = async () => {
     try {
-      const res = await fetch('/api/feedbacks');
+      const res = await authFetch('/api/feedbacks');
       const data = await res.json();
       if (data.success) {
         setFeedbacks(data.feedbacks || []);
@@ -47,9 +52,8 @@ export default function FeedbackPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/feedbacks', {
+      const res = await authFetch('/api/feedbacks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, content: content.trim() }),
       });
 
@@ -107,6 +111,15 @@ export default function FeedbackPage() {
       </header>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {!isAuthenticated && isHydrated ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <p className="text-gray-500 mb-4">请先登录后再提交反馈</p>
+            <Link href="/auth/login" className="text-blue-600 hover:underline">
+              去登录
+            </Link>
+          </div>
+        ) : (
+        <>
         {/* 留言表单 */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h2 className="text-lg font-semibold mb-4">提交反馈</h2>
@@ -209,6 +222,8 @@ export default function FeedbackPage() {
             <p className="text-gray-500 text-center py-8">暂无反馈记录</p>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Bot, User, LogOut, Shield, ChevronDown, MessageSquare, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, authFetch } from '@/lib/store';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
@@ -17,7 +17,7 @@ export default function Header() {
     
     const fetchUnreadCount = async () => {
       try {
-        const res = await fetch('/api/messages');
+        const res = await authFetch('/api/messages');
         const data = await res.json();
         if (data.success) {
           setUnreadCount(data.unreadCount || 0);
