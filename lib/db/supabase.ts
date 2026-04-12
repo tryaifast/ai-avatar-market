@@ -79,6 +79,7 @@ export const UserDB = {
       role: data.role as any,
       identity: data.identity || [],
       bio: data.bio,
+      onboardingStatus: data.onboarding_status || undefined,
       createdAt: data.created_at,
       wallet: {
         balance: data.wallet_balance || 0,

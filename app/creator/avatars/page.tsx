@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { 
   Plus, Bot, Clock, CheckCircle, XCircle, Eye, Settings,
-  TrendingUp, Users, ArrowLeft, Sparkles
+  TrendingUp, Users, ArrowLeft, Sparkles, Shield
 } from 'lucide-react';
-import { useAvatarStore, useAuthStore, authFetch } from '@/lib/store';
+import { useAvatarStore, useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   approved: {
@@ -45,13 +45,19 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 export default function MyAvatarsPage() {
   const { avatars, isLoading, setAvatars } = useAvatarStore();
   const user = useAuthStore((s) => s.user);
+  const { myApplication, fetchMyApplication } = useApplicationStore();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
-  // 按创作者获取分身（包含所有状态）
+  // 检查入驻状态
   useEffect(() => {
     if (user?.id) {
+      fetchMyApplication(user.id).finally(() => setOnboardingChecked(true));
       fetchMyAvatars();
     }
   }, [user?.id]);
+
+  // 未入驻或审核未通过，显示入驻提示
+  const isApproved = myApplication?.status === 'approved';
 
   const fetchMyAvatars = async () => {
     try {
@@ -81,8 +87,9 @@ export default function MyAvatarsPage() {
               <h1 className="text-lg font-semibold text-gray-900">我的分身</h1>
             </div>
             <Link
-              href="/creator/avatar/create"
-              className="btn-primary"
+              href={isApproved ? "/creator/avatar/create" : "/creator/onboarding"}
+              className={`btn-primary ${!isApproved ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => { if (!isApproved) e.preventDefault(); }}
             >
               <Plus className="w-4 h-4 mr-2" />
               创建新分身
@@ -227,11 +234,23 @@ export default function MyAvatarsPage() {
                   <Bot className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">还没有创建分身</h3>
-                <p className="text-gray-600 mb-6">创建你的第一个AI分身，开始接单赚钱</p>
-                <Link href="/creator/avatar/create" className="btn-primary inline-flex">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  立即创建
-                </Link>
+                {!isApproved ? (
+                  <>
+                    <p className="text-gray-600 mb-6">你需要先完成入驻审核，才能创建AI分身</p>
+                    <Link href="/creator/onboarding" className="btn-primary inline-flex">
+                      <Shield className="w-4 h-4 mr-2" />
+                      申请入驻
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-600 mb-6">创建你的第一个AI分身，开始接单赚钱</p>
+                    <Link href="/creator/avatar/create" className="btn-primary inline-flex">
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      立即创建
+                    </Link>
+                  </>
+                )}
               </div>
             )}
           </>

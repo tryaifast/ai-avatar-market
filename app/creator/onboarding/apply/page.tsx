@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuthStore, authFetch } from '@/lib/store';
 import { 
   ArrowLeft, User, Briefcase, Tag, FileText, 
   Upload, CheckCircle, Plus, X, ChevronRight, Bot
@@ -28,8 +29,10 @@ const skillOptions = [
 
 export default function OnboardingApplyPage() {
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   
   // 表单数据
   const [formData, setFormData] = useState({
@@ -94,10 +97,33 @@ export default function OnboardingApplyPage() {
 
   const handleSubmit = async () => {
     setLoading(true);
-    // 模拟提交
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setLoading(false);
-    router.push('/creator/onboarding/status');
+    setError('');
+    try {
+      const res = await authFetch('/api/creator-applications', {
+        method: 'POST',
+        body: JSON.stringify({
+          userId: user?.id,
+          realName: formData.name,
+          phone: formData.phone,
+          email: user?.email || '',
+          profession: formData.profession,
+          experienceYears: formData.experience ? parseInt(formData.experience) : undefined,
+          bio: formData.bio,
+          skills: formData.skills,
+          portfolioUrls: [],
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push('/creator/onboarding/status');
+      } else {
+        setError(data.error || '提交失败，请重试');
+      }
+    } catch (err: any) {
+      setError(err.message || '提交失败，请重试');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const canProceed = () => {
@@ -450,6 +476,9 @@ export default function OnboardingApplyPage() {
 
         {/* Navigation */}
         <div className="flex items-center justify-between mt-8">
+          {error && (
+            <p className="text-red-600 text-sm">{error}</p>
+          )}
           <button
             onClick={() => setCurrentStep(prev => prev - 1)}
             disabled={currentStep === 1}

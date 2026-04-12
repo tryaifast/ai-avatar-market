@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useApplicationStore } from '@/lib/store';
 import { 
   ArrowLeft, Clock, CheckCircle, XCircle, Bot, 
   FileText, MessageCircle, Sparkles
@@ -9,10 +10,32 @@ import {
 
 export default function OnboardingStatusPage() {
   const user = useAuthStore((s) => s.user);
-  const status = user?.onboardingStatus || 'submitted';
+  const { myApplication, fetchMyApplication } = useApplicationStore();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchMyApplication(user.id).finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, [user?.id, fetchMyApplication]);
+
+  // 优先使用 application 的 status，其次用 user 的 onboardingStatus
+  const status = myApplication?.status || user?.onboardingStatus || 'submitted';
 
   const statusConfig = {
     submitted: {
+      icon: Clock,
+      title: '审核中',
+      color: 'yellow',
+      bgColor: 'bg-yellow-50',
+      textColor: 'text-yellow-700',
+      borderColor: 'border-yellow-200',
+      description: '你的入驻申请已提交，正在审核中',
+      detail: '审核通常需要1-3个工作日，请耐心等待。审核结果将通过站内消息和短信通知你。',
+    },
+    pending: {
       icon: Clock,
       title: '审核中',
       color: 'yellow',
@@ -68,6 +91,13 @@ export default function OnboardingStatusPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+        {isLoading ? (
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-500">加载中...</p>
+          </div>
+        ) : (
+        <>
         {/* Status Card */}
         <div className={`card p-8 text-center border-2 ${config.borderColor}`}>
           <div className={`w-20 h-20 ${config.bgColor} rounded-full flex items-center justify-center mx-auto mb-6`}>
@@ -82,7 +112,7 @@ export default function OnboardingStatusPage() {
 
           {status === 'approved' && (
             <div className="mt-8 space-y-3">
-              <Link href="/creator/avatars/create" className="btn-primary btn-lg inline-flex">
+              <Link href="/creator/avatar/create" className="btn-primary btn-lg inline-flex">
                 <Sparkles className="w-5 h-5 mr-2" />
                 创建AI分身
               </Link>
@@ -100,7 +130,7 @@ export default function OnboardingStatusPage() {
             </div>
           )}
 
-          {status === 'submitted' && (
+          {(status === 'submitted' || status === 'pending') && (
             <div className="mt-8">
               <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
                 <Clock className="w-4 h-4" />
@@ -224,6 +254,8 @@ export default function OnboardingStatusPage() {
             </a>
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

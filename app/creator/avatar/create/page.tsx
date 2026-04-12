@@ -10,7 +10,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { identityTags, communicationStyles, taskTypes } from '@/lib/utils';
-import { useAuthStore, authFetch } from '@/lib/store';
+import { useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
 
 const steps = [
   { id: 'basic', label: '基本信息', description: '名称、头像、简介' },
@@ -22,8 +22,43 @@ const steps = [
 export default function CreateAvatarPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { myApplication, fetchMyApplication } = useApplicationStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
+  // 检查入驻状态
+  useEffect(() => {
+    if (user?.id) {
+      fetchMyApplication(user.id).finally(() => setOnboardingChecked(true));
+    }
+  }, [user?.id]);
+
+  // 未入驻审核通过，重定向
+  if (onboardingChecked && myApplication?.status !== 'approved') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="card p-8 text-center max-w-md">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bot className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">需要先入驻审核</h2>
+          <p className="text-gray-600 mb-6">
+            {!myApplication ? '你需要先申请入驻，审核通过后才能创建AI分身' :
+             myApplication.status === 'pending' ? '你的入驻申请正在审核中，请耐心等待' :
+             myApplication.status === 'rejected' ? '你的入驻申请未通过，请重新申请' :
+             '请先完成入驻流程'}
+          </p>
+          <Link
+            href={!myApplication ? '/creator/onboarding/apply' : '/creator/onboarding/status'}
+            className="btn-primary inline-flex"
+          >
+            {!myApplication ? '申请入驻' : '查看状态'}
+          </Link>
+        </div>
+      </div>
+    );
+  }
   
   // Form state（必须在所有条件返回之前声明）
   const [formData, setFormData] = useState({

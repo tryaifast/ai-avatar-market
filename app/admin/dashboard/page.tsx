@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useAdminAuthStore, useAvatarStore, useApplicationStore } from '@/lib/store';
+import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 管理端仪表盘
@@ -10,8 +10,8 @@ function AdminDashboardContent() {
   const [dateRange, setDateRange] = useState('7d');
   const admin = useAdminAuthStore((s) => s.admin);
   const adminLogout = useAdminAuthStore((s) => s.adminLogout);
-  const { avatars, fetchAvatars } = useAvatarStore();
-  const { applications, fetchApplications } = useApplicationStore();
+  const [avatars, setAvatars] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalAvatars: 0,
@@ -21,19 +21,37 @@ function AdminDashboardContent() {
   });
 
   useEffect(() => {
-    fetchAvatars();
-    fetchApplications('pending');
-  }, [fetchAvatars, fetchApplications]);
+    const fetchData = async () => {
+      try {
+        // 使用 adminFetch 获取分身列表
+        const avatarsRes = await adminFetch('/api/admin/avatars');
+        const avatarsData = await avatarsRes.json();
+        if (avatarsData.success) {
+          setAvatars(avatarsData.avatars || []);
+        }
+
+        // 使用 adminFetch 获取入驻申请
+        const appsRes = await adminFetch('/api/admin/applications');
+        const appsData = await appsRes.json();
+        if (appsData.success) {
+          setApplications(appsData.applications || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   useEffect(() => {
     setStats({
       totalUsers: 0, // 需要从API获取
       totalAvatars: avatars.length,
-      pendingReviews: applications.length,
+      pendingReviews: applications.filter(a => a.status === 'pending' || a.status === 'reviewing').length,
       totalRevenue: 0,
       todayRevenue: 0,
     });
-  }, [avatars.length, applications.length]);
+  }, [avatars.length, applications]);
 
   return (
     <div className="min-h-screen bg-gray-50">

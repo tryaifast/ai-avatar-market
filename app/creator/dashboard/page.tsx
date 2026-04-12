@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   TrendingUp, Clock, CheckCircle, AlertCircle, ChevronRight,
-  Plus, Star, DollarSign, ArrowLeft, MessageSquare
+  Plus, Star, DollarSign, ArrowLeft, MessageSquare, Shield
 } from 'lucide-react';
-import { useAuthStore, useAvatarStore, useTaskStore } from '@/lib/store';
+import { useAuthStore, useAvatarStore, useTaskStore, useApplicationStore } from '@/lib/store';
 
 // 创作者中心 - 使用真实数据
 // 认证保护由 Creator Layout 的 ProtectedRoute 统一处理
@@ -18,6 +18,9 @@ export default function CreatorDashboard() {
   
   const tasks = useTaskStore((s) => s.tasks);
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
+
+  const { myApplication, fetchMyApplication } = useApplicationStore();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
   
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -37,13 +40,16 @@ export default function CreatorDashboard() {
         await Promise.all([
           fetchAvatars(),
           fetchTasks(user.id, 'creator'),
+          fetchMyApplication(user.id).finally(() => setOnboardingChecked(true)),
         ]);
       }
       setIsLoading(false);
     };
     
     loadData();
-  }, [user, fetchAvatars, fetchTasks]);
+  }, [user, fetchAvatars, fetchTasks, fetchMyApplication]);
+
+  const isApproved = myApplication?.status === 'approved';
 
   // 计算统计数据
   useEffect(() => {
@@ -142,13 +148,23 @@ export default function CreatorDashboard() {
           >
             我的分身
           </Link>
-          <Link
-            href="/creator/avatar/create"
-            className="btn-primary"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            创建新分身
-          </Link>
+          {isApproved ? (
+            <Link
+              href="/creator/avatar/create"
+              className="btn-primary"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              创建新分身
+            </Link>
+          ) : (
+            <Link
+              href="/creator/onboarding"
+              className="btn-primary"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              申请入驻
+            </Link>
+          )}
         </div>
       </div>
 
@@ -159,6 +175,35 @@ export default function CreatorDashboard() {
         </div>
       ) : (
         <>
+          {/* 未入驻提示横幅 */}
+          {onboardingChecked && !isApproved && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Shield className="w-6 h-6 text-amber-600 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-amber-800">
+                    {myApplication?.status === 'pending' ? '入驻申请审核中' : '你还未完成入驻审核'}
+                  </p>
+                  <p className="text-sm text-amber-600">
+                    {myApplication?.status === 'pending' 
+                      ? '审核通常需要1-3个工作日，请耐心等待' 
+                      : '需要先完成入驻审核，才能创建AI分身和接单'}
+                  </p>
+                </div>
+              </div>
+              {myApplication?.status !== 'pending' && (
+                <Link href="/creator/onboarding" className="btn-primary text-sm">
+                  去申请入驻
+                </Link>
+              )}
+              {myApplication?.status === 'pending' && (
+                <Link href="/creator/onboarding/status" className="btn-secondary text-sm">
+                  查看进度
+                </Link>
+              )}
+            </div>
+          )}
+
           {/* Stats Grid */}
           <div className="grid md:grid-cols-4 gap-6 mb-8">
             <div className="card p-6">

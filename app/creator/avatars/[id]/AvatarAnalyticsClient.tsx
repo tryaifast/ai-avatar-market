@@ -25,6 +25,16 @@ export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
     return <div>分身不存在</div>;
   }
 
+  // 安全取值：avatar 从 API 返回的结构是 AvatarDB.toAvatar() 的格式
+  // 所有数值字段必须用 Number() 包裹 + 默认值，防止 undefined.toLocaleString() 报错
+  const stats = avatar.stats || {};
+  const views = Number(stats.hiredCount || 0);
+  const hireCount = Number(stats.completedTasks || 0);
+  const earnings = Number(stats.totalWorkTime || 0);
+  const rating = Number(stats.rating || 0);
+  const expertise = avatar.personality?.expertise || [];
+  const category = expertise[0] || '通用';
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -39,15 +49,15 @@ export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
       <div className="card p-6 mb-6">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">{avatar.name[0]}</span>
+            <span className="text-2xl font-bold text-white">{(avatar.name || '?')[0]}</span>
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{avatar.name}</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{avatar.name || '未命名'}</h2>
             <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              <span className="badge-blue">{avatar.category}</span>
+              <span className="badge-blue">{category}</span>
               <span className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                {avatar.rating}
+                {rating > 0 ? rating.toFixed(1) : '暂无'}
               </span>
             </div>
           </div>
@@ -57,24 +67,30 @@ export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="stat-card">
-          <p className="stat-card-title">总浏览量</p>
-          <p className="stat-card-value">{avatar.views.toLocaleString()}</p>
-          <p className="stat-card-change stat-card-change-up">+12.5% 较上周</p>
+          <p className="stat-card-title">雇佣次数</p>
+          <p className="stat-card-value">{views.toLocaleString()}</p>
+          <p className="stat-card-change stat-card-change-up">较上周</p>
         </div>
         <div className="stat-card">
-          <p className="stat-card-title">总雇佣次数</p>
-          <p className="stat-card-value">{avatar.hireCount}</p>
-          <p className="stat-card-change stat-card-change-up">+8.3% 较上周</p>
+          <p className="stat-card-title">完成任务</p>
+          <p className="stat-card-value">{hireCount}</p>
+          <p className="stat-card-change stat-card-change-up">较上周</p>
         </div>
         <div className="stat-card">
-          <p className="stat-card-title">总收入</p>
-          <p className="stat-card-value">¥{avatar.earnings.toLocaleString()}</p>
-          <p className="stat-card-change stat-card-change-up">+15.2% 较上周</p>
+          <p className="stat-card-title">评分</p>
+          <p className="stat-card-value">{rating > 0 ? rating.toFixed(1) : '-'}</p>
+          <p className="stat-card-change stat-card-change-up">较上周</p>
         </div>
         <div className="stat-card">
-          <p className="stat-card-title">转化率</p>
-          <p className="stat-card-value">5.2%</p>
-          <p className="stat-card-change stat-card-change-up">+0.8% 较上周</p>
+          <p className="stat-card-title">状态</p>
+          <p className="stat-card-value">
+            {avatar.status === 'active' ? '已上架' : 
+             avatar.status === 'pending' ? '审核中' : 
+             avatar.status === 'reviewing' ? '审核中' : 
+             avatar.status === 'draft' ? '草稿' : 
+             avatar.status === 'paused' ? '已暂停' : avatar.status || '-'}
+          </p>
+          <p className="stat-card-change stat-card-change-up">当前</p>
         </div>
       </div>
 

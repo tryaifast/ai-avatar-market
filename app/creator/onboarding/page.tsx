@@ -57,7 +57,7 @@ export default function OnboardingPage() {
     switch (user?.onboardingStatus) {
       case 'approved':
         return (
-          <Link href="/creator/avatars/create" className="btn-primary btn-lg">
+          <Link href="/creator/avatar/create" className="btn-primary btn-lg">
             <Bot className="w-5 h-5 mr-2" />
             创建AI分身
           </Link>

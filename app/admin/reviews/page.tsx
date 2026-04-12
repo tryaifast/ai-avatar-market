@@ -24,7 +24,7 @@ const statusColors: Record<string, string> = {
 };
 
 function AdminReviewsContent() {
-  const [activeTab, setActiveTab] = useState<'avatars' | 'applications'>('avatars');
+  const [activeTab, setActiveTab] = useState<'avatars' | 'applications'>('applications');
   const [avatars, setAvatars] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
