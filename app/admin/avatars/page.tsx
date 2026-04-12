@@ -8,7 +8,7 @@ import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 // 分身管理页面内容
 function AdminAvatarsContent() {
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'reviewing' | 'paused' | 'banned'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'reviewing' | 'paused' | 'rejected' | 'banned' | 'draft'>('all');
   const { avatars, fetchAvatars, isLoading } = useAvatarStore();
 
   useEffect(() => {
@@ -85,7 +85,9 @@ function AdminAvatarsContent() {
             <option value="all">全部状态</option>
             <option value="active">已上线</option>
             <option value="reviewing">待审核</option>
+            <option value="draft">草稿</option>
             <option value="paused">已暂停</option>
+            <option value="rejected">未通过</option>
             <option value="banned">已封禁</option>
           </select>
         </div>
@@ -122,11 +124,15 @@ function AdminAvatarsContent() {
                           avatar.status === 'active' ? 'bg-green-100 text-green-700' :
                           avatar.status === 'reviewing' ? 'bg-yellow-100 text-yellow-700' :
                           avatar.status === 'paused' ? 'bg-orange-100 text-orange-700' :
+                          avatar.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          avatar.status === 'banned' ? 'bg-red-200 text-red-800' :
+                          avatar.status === 'draft' ? 'bg-gray-100 text-gray-600' :
                           'bg-red-100 text-red-700'
                         }`}>
                           {avatar.status === 'active' ? '已上线' :
                            avatar.status === 'reviewing' ? '待审核' :
                            avatar.status === 'paused' ? '已暂停' :
+                           avatar.status === 'rejected' ? '未通过' :
                            avatar.status === 'banned' ? '已封禁' :
                            avatar.status === 'draft' ? '草稿' : avatar.status}
                         </span>
@@ -146,7 +152,7 @@ function AdminAvatarsContent() {
                               下架
                             </button>
                           )}
-                          {(avatar.status === 'paused' || avatar.status === 'banned') && (
+                          {(avatar.status === 'paused' || avatar.status === 'banned' || avatar.status === 'rejected') && (
                             <button
                               onClick={() => handleStatusChange(avatar.id, 'active')}
                               className="text-green-600 hover:underline text-sm"

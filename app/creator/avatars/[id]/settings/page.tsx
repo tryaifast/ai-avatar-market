@@ -243,6 +243,7 @@ export default function AvatarSettingsPage({ params }: { params: { id: string } 
             currentAvatar.status === 'draft' ? '草稿' :
             currentAvatar.status === 'paused' ? '已暂停' :
             currentAvatar.status === 'rejected' ? '未通过' :
+            currentAvatar.status === 'banned' ? '已封禁' :
             currentAvatar.status
           }</p>
           

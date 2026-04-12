@@ -90,7 +90,7 @@ export interface Avatar {
   };
   
   // 状态
-  status: 'draft' | 'reviewing' | 'active' | 'paused' | 'banned';
+  status: 'draft' | 'reviewing' | 'active' | 'paused' | 'rejected' | 'banned';
   
   // 统计
   stats: {

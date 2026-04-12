@@ -9,24 +9,24 @@ import {
 import { useAvatarStore, useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  approved: {
-    label: '已上架',
-    color: 'bg-green-100 text-green-700',
-    icon: CheckCircle,
-  },
   active: {
     label: '已上架',
     color: 'bg-green-100 text-green-700',
     icon: CheckCircle,
   },
-  pending: {
+  reviewing: {
     label: '审核中',
     color: 'bg-yellow-100 text-yellow-700',
     icon: Clock,
   },
-  reviewing: {
-    label: '审核中',
-    color: 'bg-yellow-100 text-yellow-700',
+  draft: {
+    label: '草稿',
+    color: 'bg-gray-100 text-gray-700',
+    icon: Bot,
+  },
+  paused: {
+    label: '已暂停',
+    color: 'bg-orange-100 text-orange-700',
     icon: Clock,
   },
   rejected: {
@@ -34,9 +34,9 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
     color: 'bg-red-100 text-red-700',
     icon: XCircle,
   },
-  inactive: {
-    label: '已下架',
-    color: 'bg-gray-100 text-gray-700',
+  banned: {
+    label: '已封禁',
+    color: 'bg-red-100 text-red-700',
     icon: XCircle,
   },
 };
@@ -164,7 +164,7 @@ export default function MyAvatarsPage() {
             {myAvatars.length > 0 ? (
               <div className="space-y-4">
                 {myAvatars.map((avatar) => {
-                  const status = statusConfig[avatar.status as keyof typeof statusConfig] || statusConfig.inactive;
+                  const status = statusConfig[avatar.status as keyof typeof statusConfig] || statusConfig.draft;
                   const StatusIcon = status.icon;
                   
                   return (

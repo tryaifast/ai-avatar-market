@@ -24,7 +24,7 @@ export async function PUT(
     const { id } = params;
     const { status, rejectReason } = await req.json();
 
-    if (!['approved', 'rejected', 'active', 'inactive'].includes(status)) {
+    if (!['approved', 'rejected', 'active', 'paused', 'banned'].includes(status)) {
       return NextResponse.json({ error: '无效的状态' }, { status: 400 });
     }
 
