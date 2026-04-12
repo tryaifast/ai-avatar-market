@@ -58,26 +58,13 @@ export default function CreatorDetailClient({ creator, avatars }: CreatorDetailC
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(0)}`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="text-gray-500 hover:text-gray-700" title="返回首页">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <div className="w-px h-5 bg-gray-300" />
-              <Link href="/client/market" className="text-gray-500 hover:text-gray-700">
-                <span className="text-sm">分身市场</span>
-              </Link>
-            </div>
-            <h1 className="text-lg font-semibold text-gray-900 ml-4">创作者详情</h1>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 面包屑 */}
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/client/market" className="text-gray-500 hover:text-gray-700 text-sm">
+          ← 返回市场
+        </Link>
+      </div>
         {/* Creator Profile Card */}
         <div className="bg-white rounded-2xl shadow-sm border p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-6">

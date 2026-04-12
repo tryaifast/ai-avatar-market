@@ -191,6 +191,53 @@ if (!user || user.role !== 'admin') return 403;
 - `app/creator/onboarding/status/page.tsx` — 同上
 - `scripts/create_missing_tables.py` — 新增建表检查脚本
 
+### Phase 11: 3个关键Bug修复 (2026-04-12) ✅
+
+#### Bug 1: 管理员群发消息后用户看不到
+**现象**: 管理员在后台群发消息，用户创作者中心消息列表为空
+**根因**:
+1. Header.tsx 使用裸 `fetch('/api/messages')` 不带 token，API 返回 401 被静默吞掉
+2. `app/client/` 目录没有 layout.tsx，缺少统一导航和认证上下文
+3. 反馈相关表可能未在 Supabase 中创建（Phase 10 已发现但未修复）
+**修复**:
+1. Header.tsx 裸 fetch → authFetch
+2. 新增 app/client/layout.tsx 统一客户端布局+导航+消息计数
+3. API 增加表缺失检测和明确错误提示
+
+#### Bug 2: 创作者中心无法提交反馈
+**现象**: 用户在创作者中心无法提交个人意见反馈
+**根因**:
+1. `app/creator/messages/page.tsx` 只是空壳占位页面，只有"查看消息通知"几个字
+2. 反馈表不在创作者中心消息页面中
+3. `feedbacks` 表可能不存在于 Supabase
+**修复**:
+1. 完整实现 creator/messages 页面：消息列表 + 反馈提交 + 历史记录
+2. 集成 markAsRead/markAllAsRead/deleteMessage
+3. 修复反馈 API 的错误处理
+
+#### Bug 3: 已登录状态还要求登录
+**现象**: 用户已登录创作者中心，创建分身时仍被重定向到登录页
+**根因**（最致命）:
+1. **AuthProvider 的 token 用了 userId 代替**！`const token = storeUser?.id || null` — userId 不是 JWT token
+2. **AuthProvider.login() 只 setUser 不存 token** — 导致 authFetch 读不到真正的 JWT token
+3. **ProtectedRoute 只检查 user + isAuthenticated** — 不检查 token 是否存在
+4. 所以 authFetch 永远带 `Authorization: Bearer <userId>` 而非真正的 JWT，服务端 verifyAuth 必然失败返回 null
+**修复**:
+1. AuthProvider: token 改为 `useAuthStore((s) => s.token)` 读真正的 JWT
+2. AuthProvider.login(): 同时设置 user 和 token `useAuthStore.setState({ token, isAuthenticated: true })`
+3. ProtectedRoute: 三重检查 user + token + isAuthenticated
+
+#### 修改文件
+- `lib/hooks/useAuth.tsx` — 修复 token=userId 致命Bug，login 同时存 token
+- `components/auth/ProtectedRoute.tsx` — 三重认证检查
+- `components/layout/Header.tsx` — 裸 fetch → authFetch
+- `app/client/layout.tsx` — 新增统一客户端布局
+- `app/creator/messages/page.tsx` — 从空壳改为完整功能页面
+- `app/client/workspace/page.tsx` — 加 isHydrated 等待
+- `app/api/messages/route.ts` — 增加表缺失检测
+- `app/api/feedbacks/route.ts` — 增加表缺失检测
+- `scripts/ensure-feedback-tables.ts` — 新增表检查工具
+
 ---
 
 ## 当前功能状态
@@ -207,6 +254,8 @@ if (!user || user.role !== 'admin') return 403;
 | 创作者入驻 | ✅ 已上线 | 申请/审核 |
 | 管理后台 | ✅ 已上线 | Dashboard/分身/订单/审核/用户 |
 | 通知系统 | ✅ 已上线 | 基础通知 |
+| 消息系统 | ✅ 已上线 | 群发+收件箱+已读(Phase 11) |
+| 反馈系统 | ✅ 已上线 | 提交+回复+历史(Phase 11) |
 
 ### ⏳ 待完成
 | 功能 | 优先级 | 说明 |

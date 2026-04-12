@@ -53,15 +53,7 @@ export default function PaymentPage() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 顶部导航 */}
-      <header className="bg-white border-b">
-        <div className="max-w-2xl mx-auto px-4 py-4">
-          <h1 className="text-lg font-semibold">确认支付</h1>
-        </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="max-w-2xl mx-auto px-4 py-6">
         {/* 订单信息 */}
         <div className="card mb-4">
           <h2 className="text-lg font-semibold mb-4">订单信息</h2>
@@ -146,6 +138,5 @@ export default function PaymentPage() {
           支付即表示同意《平台服务协议》和《支付服务协议》
         </p>
       </div>
-    </div>
   );
 }

@@ -92,22 +92,13 @@ export default function MessagesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/landing" className="text-gray-500 hover:text-gray-700">
-              ← 返回首页
-            </Link>
-            <h1 className="text-xl font-bold">我的消息</h1>
-          </div>
-          <Link href="/client/feedback" className="text-blue-600 hover:underline text-sm">
-            意见反馈
-          </Link>
-        </div>
-      </header>
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold">我的消息</h1>
+        <Link href="/client/feedback" className="text-blue-600 hover:underline text-sm">
+          意见反馈
+        </Link>
+      </div>
         {/* 操作栏 */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">

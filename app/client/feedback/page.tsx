@@ -95,22 +95,13 @@ export default function FeedbackPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/landing" className="text-gray-500 hover:text-gray-700">
-              ← 返回首页
-            </Link>
-            <h1 className="text-xl font-bold">意见反馈</h1>
-          </div>
-          <Link href="/client/messages" className="text-blue-600 hover:underline text-sm">
-            我的消息
-          </Link>
-        </div>
-      </header>
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold">意见反馈</h1>
+        <Link href="/client/messages" className="text-blue-600 hover:underline text-sm">
+          我的消息
+        </Link>
+      </div>
         {!isAuthenticated && isHydrated ? (
           <div className="text-center py-12 bg-white rounded-lg shadow">
             <p className="text-gray-500 mb-4">请先登录后再提交反馈</p>
@@ -224,7 +215,7 @@ export default function FeedbackPage() {
         </div>
         </>
         )}
-      </div>
     </div>
   );
+}
 }

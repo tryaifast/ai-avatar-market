@@ -112,9 +112,9 @@ export const useAuthStore = create<AuthState>()(
           if (error) {
             console.error('[useAuthStore] Rehydration error:', error);
           }
-          // hydration完成，设置标志
+          // 关键修复：必须用 set() 设置 _hasHydrated，否则不会触发 React 重渲染
           if (state) {
-            state._hasHydrated = true;
+            useAuthStore.setState({ _hasHydrated: true } as any);
           }
         };
       },
@@ -228,7 +228,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
             console.error('[useAdminAuthStore] Rehydration error:', error);
           }
           if (state) {
-            state._hasHydrated = true;
+            useAdminAuthStore.setState({ _hasHydrated: true } as any);
           }
         };
       },

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Search, Filter, Star, Briefcase, Clock, ChevronRight,
-  Bot, User, MessageCircle
+  Bot, MessageCircle
 } from 'lucide-react';
 import { useAvatarStore } from '@/lib/store';
 
@@ -47,28 +47,7 @@ export default function MarketPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2">
-              <Bot className="w-7 h-7 text-blue-600" />
-              <span className="text-lg font-bold">AI分身市场</span>
-            </Link>
-            <nav className="flex items-center gap-4">
-              <Link href="/creator/dashboard" className="text-gray-600 hover:text-gray-900 text-sm">
-                创作者中心
-              </Link>
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-blue-600" />
-              </div>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Title */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">分身市场</h1>
@@ -198,6 +177,5 @@ export default function MarketPage() {
           </div>
         )}
       </div>
-    </div>
   );
 }

@@ -3,17 +3,18 @@
 import Link from 'next/link';
 import { Bot, User, LogOut, Shield, ChevronDown, MessageSquare, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuthStore, authFetch } from '@/lib/store';
+import { useAuthStore, useAuthHydrated, authFetch } from '@/lib/store';
 
 export default function Header() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { isHydrated, isAuthenticated } = useAuthHydrated();
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // 获取未读消息数量
+  // 获取未读消息数量 - 必须等 hydration 完成后再请求
   useEffect(() => {
-    if (!user) return;
+    if (!isHydrated || !isAuthenticated || !user) return;
     
     const fetchUnreadCount = async () => {
       try {
@@ -31,7 +32,7 @@ export default function Header() {
     // 每30秒刷新一次
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [isHydrated, isAuthenticated, user]);
 
   return (
     <header className="bg-white border-b">
