@@ -7,9 +7,15 @@ import { verifyAuth } from '@/lib/auth';
 // GET /api/admin/avatars - 获取所有分身（管理员）
 export async function GET(req: NextRequest) {
   try {
-    const auth = await verifyAuth(req);
-    if (!auth) {
+    const currentUser = await verifyAuth(req);
+    if (!currentUser) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    }
+
+    // 检查是否为管理员
+    const user = await DB.User.getById(currentUser.userId);
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
     }
 
     const avatars = await DB.Avatar.getAll();

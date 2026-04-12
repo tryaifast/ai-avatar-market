@@ -43,7 +43,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 export default function MyAvatarsPage() {
   const { avatars, isLoading, setAvatars } = useAvatarStore();
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
 
   // 等待 Zustand persist hydration
@@ -61,7 +61,11 @@ export default function MyAvatarsPage() {
 
   const fetchMyAvatars = async () => {
     try {
-      const res = await fetch(`/api/avatars?creatorId=${user?.id}`);
+      const res = await fetch(`/api/avatars?creatorId=${user?.id}`, {
+        headers: {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
       const data = await res.json();
       if (data.success) {
         setAvatars(data.avatars || []);

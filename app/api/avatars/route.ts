@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
+import { verifyAuth } from '@/lib/auth';
 
 // GET /api/avatars - 获取分身列表
 export async function GET(req: NextRequest) {
@@ -15,6 +16,11 @@ export async function GET(req: NextRequest) {
     let avatars;
     if (creatorId) {
       // 按创作者获取（包含所有状态，创作者中心用）
+      // 验证请求者是创作者本人
+      const auth = await verifyAuth(req);
+      if (!auth || auth.userId !== creatorId) {
+        return NextResponse.json({ error: '无权访问' }, { status: 403 });
+      }
       avatars = await DB.Avatar.getByCreator(creatorId);
     } else if (query) {
       avatars = await DB.Avatar.search(query);
@@ -39,7 +45,19 @@ export async function GET(req: NextRequest) {
 // POST /api/avatars - 创建新分身
 export async function POST(req: NextRequest) {
   try {
+    // 验证登录状态
+    const auth = await verifyAuth(req);
+    if (!auth) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    }
+
     const data = await req.json();
+    
+    // 确保creatorId与登录用户一致，防止伪造
+    if (data.creatorId && data.creatorId !== auth.userId) {
+      return NextResponse.json({ error: '无权为他人创建分身' }, { status: 403 });
+    }
+    data.creatorId = auth.userId;
 
     const avatar = await DB.Avatar.create(data);
 

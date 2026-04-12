@@ -95,6 +95,24 @@
 - [x] 修复创建分身使用真实API调用
 - [x] 修复分身状态显示（支持 pending 审核中状态）
 
+### Phase 8: 认证Token + 数据查询修复 (2026-04-12) ✅
+
+#### Bug: 管理员后台看不到用户/分身，创建分身后看不到
+**问题1**: 创建分身后在「我的分身」看不到
+**根因**: GET /api/avatars 只返回 status=active，新创建的 pending 状态不返回
+**修复**: 添加 creatorId 查询参数，创作者中心按ID获取所有状态
+
+**问题2**: 管理员后台用户列表空白
+**根因**: 登录API `/api/auth/login` **从未返回JWT token**！`adminFetch` 从 localStorage 读 token 但它一直是 undefined，所有管理员 API 返回 401
+**修复**: 
+- 登录/注册 API 使用 `generateToken()` 生成 JWT 并在响应中返回
+- `useAuthStore` 添加 `token` 字段，登录/注册时保存，退出时清空
+
+**问题3**: 管理后台无分身审核功能
+**修复**: 重写审核管理页面，添加分身审核和入驻申请两个Tab
+- 创建 `/api/admin/avatars` (GET) 和 `/api/admin/avatars/[id]` (PUT)
+- 创建 `/api/admin/applications` (GET) 和 `/api/admin/applications/[id]` (PUT)
+
 ---
 
 ## 当前功能状态
