@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useAuthStore, useAvatarStore, useApplicationStore } from '@/lib/store';
+import { useAdminAuthStore, useAvatarStore, useApplicationStore } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 管理端仪表盘
 function AdminDashboardContent() {
   const [dateRange, setDateRange] = useState('7d');
-  const { user, logout } = useAuthStore();
+  const admin = useAdminAuthStore((s) => s.admin);
+  const adminLogout = useAdminAuthStore((s) => s.adminLogout);
   const { avatars, fetchAvatars } = useAvatarStore();
   const { applications, fetchApplications } = useApplicationStore();
   const [stats, setStats] = useState({
@@ -41,10 +42,10 @@ function AdminDashboardContent() {
         <div className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">管理后台</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">{user?.name || '管理员'}</span>
+            <span className="text-sm text-gray-500">{admin?.name || '管理员'}</span>
             <button
               onClick={() => {
-                logout();
+                adminLogout();
                 window.location.href = '/admin/login';
               }}
               className="text-sm text-gray-600 hover:text-gray-900"

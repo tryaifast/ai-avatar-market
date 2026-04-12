@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuthStore } from '@/lib/store';
+import { useAdminAuthStore } from '@/lib/store';
 import { Plus, Trash2, Edit2, Check, X, Key, Server } from 'lucide-react';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // AI配置管理页面
 function AIConfigContent() {
-  const user = useAuthStore((s) => s.user);
+  const admin = useAdminAuthStore((s) => s.admin);
   const [configs, setConfigs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

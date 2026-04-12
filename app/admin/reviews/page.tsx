@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useApplicationStore, useAuthStore } from '@/lib/store';
+import { useApplicationStore, useAdminAuthStore } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 审核管理页面内容
@@ -11,7 +11,7 @@ function AdminReviewsContent() {
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
   const { applications, fetchApplications, reviewApplication, isLoading } = useApplicationStore();
-  const { user } = useAuthStore();
+  const { admin: user } = useAdminAuthStore();
 
   useEffect(() => {
     fetchApplications();

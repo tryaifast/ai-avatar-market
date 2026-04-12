@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAdminAuthStore } from '@/lib/store';
 import Link from 'next/link';
 
 // 管理后台消息推送页面
 export default function AdminMessagesPage() {
-  const user = useAuthStore((s) => s.user);
+  const admin = useAdminAuthStore((s) => s.admin);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [targetType, setTargetType] = useState('all');

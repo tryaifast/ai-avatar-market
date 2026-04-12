@@ -106,6 +106,70 @@ export const useAuthStore = create<AuthState>()(
 );
 
 // ============================================
+// Admin Auth Store - 管理员认证状态（独立存储，互不影响）
+// ============================================
+interface AdminAuthState {
+  admin: User | null;
+  isAdminAuthenticated: boolean;
+  isLoading: boolean;
+
+  // Actions
+  setAdmin: (admin: User | null) => void;
+  adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  adminLogout: () => void;
+}
+
+export const useAdminAuthStore = create<AdminAuthState>()(
+  persist(
+    (set) => ({
+      admin: null,
+      isAdminAuthenticated: false,
+      isLoading: false,
+
+      setAdmin: (admin) => set({ admin, isAdminAuthenticated: !!admin }),
+
+      adminLogin: async (email, password) => {
+        set({ isLoading: true });
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            set({ isLoading: false });
+            return { success: false, error: data.error };
+          }
+
+          // 验证是否为管理员
+          if (data.user?.role !== 'admin') {
+            set({ isLoading: false });
+            return { success: false, error: '此账号不是管理员' };
+          }
+
+          set({ admin: data.user, isAdminAuthenticated: true, isLoading: false });
+          return { success: true };
+        } catch (error: any) {
+          set({ isLoading: false });
+          return { success: false, error: error.message };
+        }
+      },
+
+      adminLogout: () => {
+        set({ admin: null, isAdminAuthenticated: false });
+      },
+    }),
+    {
+      name: 'admin-auth-storage',
+      partialize: (state) => ({ admin: state.admin, isAdminAuthenticated: state.isAdminAuthenticated }),
+    }
+  )
+);
+
+// ============================================
 // Avatar Store - 分身管理
 // ============================================
 interface AvatarState {

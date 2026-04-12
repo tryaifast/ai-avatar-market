@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAdminAuthStore } from '@/lib/store';
 import Link from 'next/link';
 
 // 管理后台留言管理页面
 export default function AdminFeedbacksPage() {
-  const user = useAuthStore((s) => s.user);
+  const admin = useAdminAuthStore((s) => s.admin);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');

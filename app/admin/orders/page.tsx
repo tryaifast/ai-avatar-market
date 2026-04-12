@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useTaskStore, useAuthStore } from '@/lib/store';
+import { useTaskStore, useAdminAuthStore } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 订单管理页面内容
@@ -10,7 +10,7 @@ function AdminOrdersContent() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const { tasks, fetchTasks, isLoading } = useTaskStore();
-  const { user } = useAuthStore();
+  const { admin: user } = useAdminAuthStore();
 
   useEffect(() => {
     // 获取所有任务（管理视角）

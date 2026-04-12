@@ -2,14 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
+import { useAdminAuthStore } from '@/lib/store';
 
-// 管理端登录页面
+// 管理端登录页面（使用独立的 adminAuthStore，与用户登录互不影响）
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const login = useAuthStore((s) => s.login);
-  const isLoading = useAuthStore((s) => s.isLoading);
+  const adminLogin = useAdminAuthStore((s) => s.adminLogin);
+  const isLoading = useAdminAuthStore((s) => s.isLoading);
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
     setIsLoggingIn(true);
 
     try {
-      const result = await login(email, password);
+      const result = await adminLogin(email, password);
 
       if (result.success) {
         // 给 Zustand persist 一点时间写入 localStorage
