@@ -91,7 +91,14 @@ export default function CreateAvatarPage() {
         body: JSON.stringify({
           name: formData.name,
           description: formData.description,
+          avatar: avatarPreview || '/default-avatar.png',
           personality: formData.personality,
+          memoryFiles: {
+            soul: '',
+            memory: '',
+            history: [],
+            custom: [],
+          },
           pricing: formData.pricing,
           scope: formData.scope,
           status: 'pending', // 新创建的分身需要审核
