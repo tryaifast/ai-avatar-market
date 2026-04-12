@@ -238,6 +238,39 @@ if (!user || user.role !== 'admin') return 403;
 - `app/api/feedbacks/route.ts` — 增加表缺失检测
 - `scripts/ensure-feedback-tables.ts` — 新增表检查工具
 
+### Phase 12: Header重复+消息401+JSX结构破坏修复 (2026-04-12) ✅
+
+#### Bug 1: Header重复渲染（两行导航栏）
+**现象**: 页面顶部出现两行"AI分身市场"导航栏
+**根因**: `app/client/layout.tsx` 有完整导航栏（Phase 11新增），但每个子页面还保留了内联的`<header>`标签
+**修复**: 删除8个子页面的内联`<header>`标签
+
+#### Bug 2: 消息API返回401
+**现象**: GET /api/messages 返回 401 Unauthorized
+**根因**: `onRehydrateStorage`中 `state._hasHydrated = true` 直接修改属性，Zustand不触发React重渲染，导致authFetch读取token时还是null
+**修复**: 改用 `useAuthStore.setState({ _hasHydrated: true })`，Header.tsx加hydration检查
+
+#### Bug 3: Vercel构建失败 — Syntax Error（6个文件）
+**现象**: `npm run build` 报 Syntax Error at "D" in messages/page.tsx
+**根因**: 删除内联`<header>`时破坏了JSX树结构，6个文件留下了多余的`</div>`闭合标签
+- messages/page.tsx: 第185行多余`</div>`
+- feedback/page.tsx: 第221行多余`}`
+- hire/[id]/HirePageClient.tsx: 第50行多余`</div>`
+- hire/[id]/confirm/HireConfirmClient.tsx: 第224行多余`</div>`
+- creator/[id]/CreatorDetailClient.tsx: 第322行多余`</div>`（导致Modal脱离最外层div）
+- workspace/page.tsx: 第82行多余`</div>`（导致Tab内容脱离最外层div）
+**修复**: 删除6个文件中多余的闭合标签
+**教训**: 修改JSX结构后必须追踪开闭标签栈，确保每对标签正确匹配
+
+#### 修改文件
+- `app/client/messages/page.tsx` — 删除多余`</div>`，修复JSX嵌套
+- `app/client/feedback/page.tsx` — 删除多余`}`
+- `app/client/hire/[id]/HirePageClient.tsx` — 删除多余`</div>`
+- `app/client/hire/[id]/confirm/HireConfirmClient.tsx` — 删除多余`</div>`
+- `app/client/creator/[id]/CreatorDetailClient.tsx` — 删除多余`</div>`，Modal正确嵌套
+- `app/client/workspace/page.tsx` — 删除多余`</div>`，Tab内容正确嵌套
+- `lib/store/index.ts` — onRehydrateStorage用setState替代直接属性修改
+
 ---
 
 ## 当前功能状态
