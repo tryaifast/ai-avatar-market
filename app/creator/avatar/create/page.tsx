@@ -26,6 +26,39 @@ export default function CreateAvatarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   
+  // Form state（必须在所有条件返回之前声明）
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    personality: {
+      mbti: '',
+      communicationStyle: 'professional',
+      proactivity: 5,
+      expertise: [] as string[],
+    },
+    memoryFiles: {
+      soul: null as File | null,
+      memory: null as File | null,
+      history: [] as File[],
+    },
+    pricing: {
+      type: 'per_task' as 'per_task' | 'subscription',
+      perTask: { min: 500, max: 2000 },
+      subscription: { monthly: 29900, yearly: 299000 },
+    },
+    scope: {
+      canDo: [] as string[],
+      cannotDo: [] as string[],
+      responseTime: '24小时内',
+    },
+  });
+  
+  const [newExpertise, setNewExpertise] = useState('');
+  const [newCanDo, setNewCanDo] = useState('');
+  const [newCannotDo, setNewCannotDo] = useState('');
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [showSuccess, setShowSuccess] = useState(false);
+  
   // 等待 Zustand persist hydration 完成
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -52,38 +85,6 @@ export default function CreateAvatarPage() {
       </div>
     );
   }
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    personality: {
-      mbti: '',
-      communicationStyle: 'professional',
-      proactivity: 5,
-      expertise: [] as string[],
-    },
-    memoryFiles: {
-      soul: null as File | null,
-      memory: null as File | null,
-      history: [] as File[],
-    },
-    pricing: {
-      type: 'per_task' as 'per_task' | 'subscription',
-      perTask: { min: 500, max: 2000 },
-      subscription: { monthly: 29900, yearly: 299000 },
-    },
-    scope: {
-      canDo: [] as string[],
-      cannotDo: [] as string[],
-      responseTime: '24小时内',
-    },
-  });
-
-  const [newExpertise, setNewExpertise] = useState('');
-  const [newCanDo, setNewCanDo] = useState('');
-  const [newCannotDo, setNewCannotDo] = useState('');
-  const [avatarPreview, setAvatarPreview] = useState<string>('');
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -107,8 +108,6 @@ export default function CreateAvatarPage() {
       setCurrentStep(currentStep - 1);
     }
   };
-
-  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);

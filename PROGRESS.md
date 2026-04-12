@@ -66,11 +66,13 @@
 
 ### Phase 7: 认证系统修复 (2026-04-12) ✅
 
-#### Bug 1: 创作者中心跳转登录页
-**问题**: 用户登录后点击「创作者中心」，被重定向到登录页
+#### Bug 1: 创作者中心跳转登录页（重复发生3次）
+**问题**: 用户登录后点击「创作者中心」或「创建分身」，被重定向到登录页
 **根因**: Zustand persist hydration 是异步的，页面首次渲染时 `isAuthenticated=false`，useEffect 立即触发跳转
 **修复**: 添加 `isHydrated` 状态，300ms 延迟后检查认证，未完成时显示 loading
-**文件**: `app/creator/dashboard/page.tsx`
+**文件**: 
+- `app/creator/dashboard/page.tsx` ✅
+- `app/creator/avatar/create/page.tsx` ✅（2026-04-12补充修复）
 
 #### Bug 2: 管理员后台看不到用户列表
 **问题**: 管理员登录后访问「用户管理」，页面空白
