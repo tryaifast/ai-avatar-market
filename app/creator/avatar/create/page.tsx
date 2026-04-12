@@ -21,16 +21,37 @@ const steps = [
 
 export default function CreateAvatarPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
   
-  // 检查登录状态
+  // 等待 Zustand persist hydration 完成
   useEffect(() => {
-    if (!user) {
+    const timer = setTimeout(() => {
+      setIsHydrated(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // 检查登录状态（hydration完成后）
+  useEffect(() => {
+    if (isHydrated && !isAuthenticated) {
       router.push('/auth/login');
     }
-  }, [user, router]);
+  }, [isHydrated, isAuthenticated, router]);
+  
+  // hydration完成前显示loading
+  if (!isHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
   
   // Form state
   const [formData, setFormData] = useState({
