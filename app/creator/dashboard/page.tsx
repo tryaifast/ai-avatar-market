@@ -43,7 +43,7 @@ export default function CreatorDashboard() {
       setIsLoading(true);
       await Promise.all([
         fetchAvatars(),
-        fetchTasks(user.id),
+        fetchTasks(user.id, 'creator'),
       ]);
       setIsLoading(false);
     };
