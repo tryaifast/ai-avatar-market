@@ -271,6 +271,18 @@ if (!user || user.role !== 'admin') return 403;
 - `app/client/workspace/page.tsx` — 删除多余`</div>`，Tab内容正确嵌套
 - `lib/store/index.ts` — onRehydrateStorage用setState替代直接属性修改
 
+### Phase 13: workspace/page.tsx 多余闭合标签修复 (2026-04-12) ✅
+
+#### Bug: Vercel构建失败 — Syntax Error in workspace/page.tsx
+**现象**: `npm run build` 报 Syntax Error at L53 `<div className="max-w-6xl">`
+**根因**: Phase 12 修复时删除了 workspace/page.tsx 中的一个 `</div>`，但文件末尾仍有多余的 `</div>` 闭合标签（L383），导致标签栈不平衡（balance=-1）
+**修复**: 删除文件末尾多余的 `</div>` 闭合标签
+**文件**: `app/client/workspace/page.tsx`
+**全面审核**: 使用 Python 脚本验证所有 client/*.tsx 文件的 div 开闭标签匹配情况，client 目录全部通过
+**待修复（非阻断）**:
+- `creator/avatar/create/page.tsx`: div 差3个（有 @ts-nocheck，可能不影响构建）
+- `admin/ai-config/page.tsx`: button 差1个
+
 ---
 
 ## 当前功能状态
