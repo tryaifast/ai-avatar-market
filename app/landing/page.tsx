@@ -25,6 +25,14 @@ export default function LandingPage() {
           <nav className="flex items-center justify-between mb-16">
             <div className="text-2xl font-bold">AI分身市场</div>
             <div className="flex items-center gap-6">
+              {user && (
+                <Link 
+                  href={user.role === 'admin' ? '/admin/dashboard' : user.role === 'creator' ? '/creator/dashboard' : '/client/workspace'}
+                  className="hover:text-blue-200"
+                >
+                  个人中心
+                </Link>
+              )}
               <Link href="/client/market" className="hover:text-blue-200">浏览市场</Link>
               <Link href="/creator/onboarding" className="hover:text-blue-200">成为创作者</Link>
               

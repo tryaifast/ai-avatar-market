@@ -82,14 +82,39 @@ export default function CreateAvatarPage() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setShowSuccess(true);
-    // 3秒后跳转到我的分身页面
-    setTimeout(() => {
-      router.push('/creator/avatars');
-    }, 3000);
+    
+    try {
+      // 调用真实API创建分身
+      const res = await fetch('/api/avatars', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          personality: formData.personality,
+          pricing: formData.pricing,
+          scope: formData.scope,
+          status: 'pending', // 新创建的分身需要审核
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setShowSuccess(true);
+        // 3秒后跳转到我的分身页面
+        setTimeout(() => {
+          router.push('/creator/avatars');
+        }, 3000);
+      } else {
+        alert(data.error || '创建失败，请重试');
+      }
+    } catch (error) {
+      console.error('Create avatar error:', error);
+      alert('网络错误，请重试');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const addExpertise = () => {

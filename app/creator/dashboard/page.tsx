@@ -1,78 +1,130 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   TrendingUp, Clock, CheckCircle, AlertCircle, ChevronRight,
-  Plus, Star, DollarSign, ArrowLeft
+  Plus, Star, DollarSign, ArrowLeft, MessageSquare
 } from 'lucide-react';
+import { useAuthStore, useAvatarStore, useTaskStore } from '@/lib/store';
 
-// 模拟数据
-const dashboardData = {
-  today: { earnings: 2580, tasks: 3, newHires: 2 },
-  thisWeek: { earnings: 15680, tasks: 12, workTime: 180 },
-  thisMonth: { earnings: 52340, tasks: 38 },
-  pendingReviews: 2,
-  activeTasks: 5,
-  topAvatars: [
-    { avatarId: '1', name: '代码审查助手·小明', earnings: 28900, tasks: 18 },
-    { avatarId: '2', name: '产品顾问·Pro', earnings: 15600, tasks: 12 },
-    { avatarId: '3', name: '文案策划·阿文', earnings: 7840, tasks: 8 },
-  ],
-};
-
-const pendingTasks = [
-  {
-    id: 'task_1',
-    title: 'React项目代码审查',
-    client: '张三',
-    avatar: '代码审查助手·小明',
-    status: 'ai_completed',
-    aiCompletedAt: '2026-03-29T18:30:00',
-    price: 1500,
-  },
-  {
-    id: 'task_2',
-    title: '产品需求文档撰写',
-    client: '李四',
-    avatar: '产品顾问·Pro',
-    status: 'human_reviewing',
-    aiCompletedAt: '2026-03-29T17:00:00',
-    price: 3000,
-  },
-];
-
-const recentTasks = [
-  {
-    id: 'task_3',
-    title: 'Landing Page文案优化',
-    client: '王五',
-    avatar: '文案策划·阿文',
-    status: 'completed',
-    completedAt: '2026-03-28T15:30:00',
-    price: 800,
-    rating: 5,
-  },
-  {
-    id: 'task_4',
-    title: '数据库查询优化建议',
-    client: '赵六',
-    avatar: '代码审查助手·小明',
-    status: 'completed',
-    completedAt: '2026-03-28T10:00:00',
-    price: 1200,
-    rating: 5,
-  },
-];
-
-const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
-
-const taskStatusMap: Record<string, { label: string; color: string; icon: any }> = {
-  ai_completed: { label: '待审核', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
-  human_reviewing: { label: '审核中', color: 'bg-blue-100 text-blue-700', icon: Clock },
-  completed: { label: '已完成', color: 'bg-green-100 text-green-700', icon: CheckCircle },
-};
-
+// 创作者中心 - 使用真实数据
 export default function CreatorDashboard() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  
+  const avatars = useAvatarStore((s) => s.avatars);
+  const fetchAvatars = useAvatarStore((s) => s.fetchAvatars);
+  
+  const tasks = useTaskStore((s) => s.tasks);
+  const fetchTasks = useTaskStore((s) => s.fetchTasks);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    todayEarnings: 0,
+    weekEarnings: 0,
+    monthEarnings: 0,
+    pendingReviews: 0,
+    activeTasks: 0,
+    totalTasks: 0,
+  });
+
+  // 检查登录状态
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/auth/login');
+      return;
+    }
+    
+    // 加载数据
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([
+        fetchAvatars(),
+        fetchTasks(),
+      ]);
+      setIsLoading(false);
+    };
+    
+    loadData();
+  }, [isAuthenticated, router, fetchAvatars, fetchTasks]);
+
+  // 计算统计数据
+  useEffect(() => {
+    if (!tasks) return;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    let todayEarnings = 0;
+    let weekEarnings = 0;
+    let monthEarnings = 0;
+    let pendingReviews = 0;
+    let activeTasks = 0;
+    
+    tasks.forEach((task: any) => {
+      const taskDate = new Date(task.createdAt || task.created_at);
+      const price = task.price || 0;
+      
+      // 计算收益
+      if (task.status === 'completed' || task.status === 'paid') {
+        if (taskDate >= today) todayEarnings += price;
+        if (taskDate >= weekAgo) weekEarnings += price;
+        if (taskDate >= monthAgo) monthEarnings += price;
+      }
+      
+      // 统计任务状态
+      if (task.status === 'ai_completed' || task.status === 'human_reviewing') {
+        pendingReviews++;
+      }
+      if (task.status === 'in_progress' || task.status === 'ai_working') {
+        activeTasks++;
+      }
+    });
+    
+    setStats({
+      todayEarnings,
+      weekEarnings,
+      monthEarnings,
+      pendingReviews,
+      activeTasks,
+      totalTasks: tasks.length,
+    });
+  }, [tasks]);
+
+  // 获取待审核任务
+  const pendingTasks = tasks?.filter((t: any) => 
+    t.status === 'ai_completed' || t.status === 'human_reviewing'
+  ).slice(0, 5) || [];
+  
+  // 获取最近完成的任务
+  const recentTasks = tasks?.filter((t: any) => 
+    t.status === 'completed' || t.status === 'paid'
+  ).slice(0, 5) || [];
+  
+  // 获取表现最佳的分身
+  const topAvatars = avatars
+    ?.filter((a: any) => a.creatorId === user?.id)
+    ?.sort((a: any, b: any) => (b.earnings || 0) - (a.earnings || 0))
+    ?.slice(0, 3) || [];
+
+  const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
+
+  const taskStatusMap: Record<string, { label: string; color: string; icon: any }> = {
+    ai_completed: { label: '待审核', color: 'bg-yellow-100 text-yellow-700', icon: AlertCircle },
+    human_reviewing: { label: '审核中', color: 'bg-blue-100 text-blue-700', icon: Clock },
+    completed: { label: '已完成', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+    paid: { label: '已支付', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  };
+
+  if (!isAuthenticated) {
+    return null; // 重定向中
+  }
+
   return (
     <div className="p-8">
       {/* Header */}
@@ -87,6 +139,13 @@ export default function CreatorDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/client/feedback"
+            className="btn-secondary flex items-center gap-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            反馈建议
+          </Link>
           <Link
             href="/creator/avatars"
             className="btn-secondary"
@@ -103,157 +162,193 @@ export default function CreatorDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">今日收益</span>
-            <DollarSign className="w-5 h-5 text-green-600" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900">
-            {formatPrice(dashboardData.today.earnings)}
-          </div>
-          <div className="text-sm text-green-600 mt-1">
-            +{dashboardData.today.tasks} 个任务
-          </div>
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-500">加载中...</p>
         </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">本周收益</span>
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+      ) : (
+        <>
+          {/* Stats Grid */}
+          <div className="grid md:grid-cols-4 gap-6 mb-8">
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">今日收益</span>
+                <DollarSign className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatPrice(stats.todayEarnings)}
+              </div>
+              <div className="text-sm text-green-600 mt-1">
+                实时更新
+              </div>
+            </div>
+            
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">本周收益</span>
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatPrice(stats.weekEarnings)}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">
+                近7天
+              </div>
+            </div>
+            
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">待审核</span>
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {stats.pendingReviews}
+              </div>
+              <div className="text-sm text-yellow-600 mt-1">
+                需要你的确认
+              </div>
+            </div>
+            
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-500">进行中</span>
+                <Clock className="w-5 h-5 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {stats.activeTasks}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">
+                AI正在工作
+              </div>
+            </div>
           </div>
-          <div className="text-2xl font-bold text-gray-900">
-            {formatPrice(dashboardData.thisWeek.earnings)}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">
-            {dashboardData.thisWeek.tasks} 个任务
-          </div>
-        </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">待审核</span>
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900">
-            {dashboardData.pendingReviews}
-          </div>
-          <div className="text-sm text-yellow-600 mt-1">
-            需要你的确认
-          </div>
-        </div>
-        
-        <div className="card p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">进行中</span>
-            <Clock className="w-5 h-5 text-purple-600" />
-          </div>
-          <div className="text-2xl font-bold text-gray-900">
-            {dashboardData.activeTasks}
-          </div>
-          <div className="text-sm text-gray-500 mt-1">
-            AI正在工作
-          </div>
-        </div>
-      </div>
 
-      {/* Pending Reviews */}
-      {pendingTasks.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
-            待审核任务
-            <span className="badge-yellow">{pendingTasks.length}</span>
-          </h2>
-          <div className="space-y-4">
-            {pendingTasks.map((task) => {
-              const StatusIcon = taskStatusMap[task.status].icon;
-              return (
-                <div key={task.id} className="card p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${taskStatusMap[task.status].color}`}>
-                      <StatusIcon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">{task.title}</h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
-                        <span>客户: {task.client}</span>
-                        <span>·</span>
-                        <span>分身: {task.avatar}</span>
-                        <span>·</span>
-                        <span>AI完成于 {new Date(task.aiCompletedAt).toLocaleString('zh-CN')}</span>
+          {/* Pending Reviews */}
+          {pendingTasks.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+                待审核任务
+                <span className="badge-yellow">{pendingTasks.length}</span>
+              </h2>
+              <div className="space-y-4">
+                {pendingTasks.map((task: any) => {
+                  const statusConfig = taskStatusMap[task.status] || taskStatusMap.ai_completed;
+                  const StatusIcon = statusConfig.icon;
+                  return (
+                    <div key={task.id} className="card p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${statusConfig.color}`}>
+                          <StatusIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">{task.title}</h3>
+                          <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
+                            <span>客户: {task.clientName || task.client?.name || '未知'}</span>
+                            <span>·</span>
+                            <span>分身: {task.avatarName || task.avatar?.name || '未知'}</span>
+                            {task.aiCompletedAt && (
+                              <>
+                                <span>·</span>
+                                <span>AI完成于 {new Date(task.aiCompletedAt).toLocaleString('zh-CN')}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-gray-900">{formatPrice(task.price || 0)}</span>
+                        <Link
+                          href={`/creator/tasks/${task.id}`}
+                          className="btn-primary text-sm"
+                        >
+                          去审核
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Link>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold text-gray-900">{formatPrice(task.price)}</span>
-                    <Link
-                      href={`/creator/tasks/${task.id}`}
-                      className="btn-primary text-sm"
-                    >
-                      去审核
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Link>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Two Column Layout */}
+          <div className="grid lg:grid-cols-2 gap-8">
+            {/* Top Avatars */}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">我的分身</h2>
+              {topAvatars.length > 0 ? (
+                <div className="card divide-y">
+                  {topAvatars.map((avatar: any, index: number) => (
+                    <div key={avatar.id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-semibold text-sm">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900">{avatar.name}</h3>
+                          <div className="text-sm text-gray-500">
+                            {avatar.status === 'approved' ? '已上架' : 
+                             avatar.status === 'pending' ? '审核中' : '已下架'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-green-600">{formatPrice(avatar.earnings || 0)}</div>
+                        <div className="text-xs text-gray-500">累计收益</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
+              ) : (
+                <div className="card p-8 text-center">
+                  <p className="text-gray-500 mb-4">还没有创建分身</p>
+                  <Link href="/creator/avatar/create" className="btn-primary">
+                    创建第一个分身
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Recent Tasks */}
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">最近完成的任务</h2>
+              {recentTasks.length > 0 ? (
+                <div className="card divide-y">
+                  {recentTasks.map((task: any) => (
+                    <div key={task.id} className="p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-gray-900">{task.title}</h3>
+                        <span className="font-semibold text-gray-900">{formatPrice(task.price || 0)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-500">
+                        <span>客户: {task.clientName || task.client?.name || '未知'}</span>
+                        <span>·</span>
+                        <span>{new Date(task.completedAt || task.updated_at).toLocaleDateString('zh-CN')}</span>
+                        {task.rating && (
+                          <>
+                            <span>·</span>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                              <span>{task.rating}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="card p-8 text-center">
+                  <p className="text-gray-500">暂无已完成任务</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
-
-      {/* Two Column Layout */}
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Top Avatars */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">表现最佳的分身</h2>
-          <div className="card divide-y">
-            {dashboardData.topAvatars.map((avatar, index) => (
-              <div key={avatar.avatarId} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-semibold text-sm">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">{avatar.name}</h3>
-                    <div className="text-sm text-gray-500">{avatar.tasks} 个任务</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold text-green-600">{formatPrice(avatar.earnings)}</div>
-                  <div className="text-xs text-gray-500">累计收益</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Tasks */}
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">最近完成的任务</h2>
-          <div className="card divide-y">
-            {recentTasks.map((task) => (
-              <div key={task.id} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900">{task.title}</h3>
-                  <span className="font-semibold text-gray-900">{formatPrice(task.price)}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-500">
-                  <span>客户: {task.client}</span>
-                  <span>·</span>
-                  <span>{new Date(task.completedAt).toLocaleDateString('zh-CN')}</span>
-                  <span>·</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span>{task.rating}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

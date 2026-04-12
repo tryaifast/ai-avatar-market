@@ -90,6 +90,10 @@ function AdminDashboardContent() {
               <span>📢</span>
               <span>消息推送</span>
             </Link>
+            <Link href="/admin/ai-config" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+              <span>🔑</span>
+              <span>AI配置</span>
+            </Link>
           </nav>
         </aside>
 

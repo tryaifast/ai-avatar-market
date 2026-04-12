@@ -8,11 +8,21 @@ import {
 } from 'lucide-react';
 import { useAvatarStore, useAuthStore } from '@/lib/store';
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
+  approved: {
+    label: '已上架',
+    color: 'bg-green-100 text-green-700',
+    icon: CheckCircle,
+  },
   active: {
     label: '已上架',
     color: 'bg-green-100 text-green-700',
     icon: CheckCircle,
+  },
+  pending: {
+    label: '审核中',
+    color: 'bg-yellow-100 text-yellow-700',
+    icon: Clock,
   },
   reviewing: {
     label: '审核中',
