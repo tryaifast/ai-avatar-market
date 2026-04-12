@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -10,6 +10,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { identityTags, communicationStyles, taskTypes } from '@/lib/utils';
+import { useAuthStore } from '@/lib/store';
 
 const steps = [
   { id: 'basic', label: '基本信息', description: '名称、头像、简介' },
@@ -20,8 +21,16 @@ const steps = [
 
 export default function CreateAvatarPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // 检查登录状态
+  useEffect(() => {
+    if (!user) {
+      router.push('/auth/login');
+    }
+  }, [user, router]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -85,10 +94,17 @@ export default function CreateAvatarPage() {
     
     try {
       // 调用真实API创建分身
+      if (!user) {
+        alert('请先登录');
+        router.push('/auth/login');
+        return;
+      }
+      
       const res = await fetch('/api/avatars', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          creatorId: user.id,
           name: formData.name,
           description: formData.description,
           avatar: avatarPreview || '/default-avatar.png',
@@ -101,7 +117,7 @@ export default function CreateAvatarPage() {
           },
           pricing: formData.pricing,
           scope: formData.scope,
-          status: 'pending', // 新创建的分身需要审核
+          status: 'pending',
         }),
       });
 
