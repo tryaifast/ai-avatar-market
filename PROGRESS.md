@@ -53,10 +53,18 @@
 
 ### Phase 5: RLS 安全策略修复 (2026-04-11) ✅
 - [x] 修复注册报错：`new row violates row-level security policy for table "users"`
-- [x] 所有写操作改用 `createServiceClient()`（service role key，绕过RLS）
-- [x] 读操作保持 `supabase`（anon key，受RLS保护）
+- [x] 所有DB操作改用 `createServiceClient()`（service role key，绕过RLS）
 - [x] Vercel 环境变量配置 `SUPABASE_SERVICE_ROLE_KEY`
 - [x] 注册/登录功能验证通过
+
+### Phase 6: 全面测试修复 (2026-04-12) ✅
+- [x] 创建 `/api/admin/users` API - 修复用户管理页面空白
+- [x] 首页添加「个人中心」导航按钮
+- [x] 创作者中心改用真实数据（原使用mock数据）
+- [x] 修复 `verifyAuth` 支持cookie认证 - 解决管理员消息发送提示登录问题
+- [x] 创建AI配置管理功能（数据库表、API、管理页面）
+- [x] 修复创建分身使用真实API调用
+- [x] 修复分身状态显示（支持 pending 审核中状态）
 
 ---
 
