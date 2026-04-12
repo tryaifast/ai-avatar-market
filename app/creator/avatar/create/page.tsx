@@ -10,7 +10,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { identityTags, communicationStyles, taskTypes } from '@/lib/utils';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, authFetch } from '@/lib/store';
 
 const steps = [
   { id: 'basic', label: '基本信息', description: '名称、头像、简介' },
@@ -21,10 +21,9 @@ const steps = [
 
 export default function CreateAvatarPage() {
   const router = useRouter();
-  const { user, isAuthenticated, token } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   
   // Form state（必须在所有条件返回之前声明）
   const [formData, setFormData] = useState({
@@ -59,32 +58,8 @@ export default function CreateAvatarPage() {
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState(false);
   
-  // 等待 Zustand persist hydration 完成
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsHydrated(true);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // 检查登录状态（hydration完成后）
-  useEffect(() => {
-    if (isHydrated && !isAuthenticated) {
-      router.push('/auth/login');
-    }
-  }, [isHydrated, isAuthenticated, router]);
-  
-  // hydration完成前显示loading
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+  // 认证保护由 Creator Layout 的 ProtectedRoute 统一处理
+  // 无需再手动检查 isHydrated / isAuthenticated
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,19 +88,9 @@ export default function CreateAvatarPage() {
     setIsSubmitting(true);
     
     try {
-      // 调用真实API创建分身
-      if (!user) {
-        alert('请先登录');
-        router.push('/auth/login');
-        return;
-      }
-      
-      const res = await fetch('/api/avatars', {
+      // 使用 authFetch 自动带 token
+      const res = await authFetch('/api/avatars', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({
           creatorId: user.id,
           name: formData.name,

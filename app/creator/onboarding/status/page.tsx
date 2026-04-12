@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useAppStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/store';
 import { 
   ArrowLeft, Clock, CheckCircle, XCircle, Bot, 
   FileText, MessageCircle, Sparkles
 } from 'lucide-react';
 
 export default function OnboardingStatusPage() {
-  const { user } = useAppStore();
+  const user = useAuthStore((s) => s.user);
   const status = user?.onboardingStatus || 'submitted';
 
   const statusConfig = {

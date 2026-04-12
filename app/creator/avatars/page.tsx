@@ -6,7 +6,7 @@ import {
   Plus, Bot, Clock, CheckCircle, XCircle, Eye, Settings,
   TrendingUp, Users, ArrowLeft, Sparkles
 } from 'lucide-react';
-import { useAvatarStore, useAuthStore } from '@/lib/store';
+import { useAvatarStore, useAuthStore, authFetch } from '@/lib/store';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   approved: {
@@ -41,31 +41,22 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   },
 };
 
+// 认证保护由 Creator Layout 的 ProtectedRoute 统一处理
 export default function MyAvatarsPage() {
   const { avatars, isLoading, setAvatars } = useAvatarStore();
-  const { user, token } = useAuthStore();
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // 等待 Zustand persist hydration
-  useEffect(() => {
-    const timer = setTimeout(() => setIsHydrated(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
+  const user = useAuthStore((s) => s.user);
 
   // 按创作者获取分身（包含所有状态）
   useEffect(() => {
-    if (isHydrated && user?.id) {
+    if (user?.id) {
       fetchMyAvatars();
     }
-  }, [isHydrated, user?.id]);
+  }, [user?.id]);
 
   const fetchMyAvatars = async () => {
     try {
-      const res = await fetch(`/api/avatars?creatorId=${user?.id}`, {
-        headers: {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-      });
+      // 使用 authFetch 自动带 token
+      const res = await authFetch(`/api/avatars?creatorId=${user?.id}`);
       const data = await res.json();
       if (data.success) {
         setAvatars(data.avatars || []);
@@ -76,18 +67,6 @@ export default function MyAvatarsPage() {
   };
 
   const myAvatars = avatars;
-
-  // hydration 完成前显示 loading
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

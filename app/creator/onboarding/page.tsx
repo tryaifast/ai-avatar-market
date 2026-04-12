@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAppStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/store';
 import { 
   Sparkles, Shield, TrendingUp, Users, ArrowRight, 
   CheckCircle, Clock, DollarSign, Bot, ArrowLeft
@@ -38,7 +38,7 @@ const steps = [
 ];
 
 export default function OnboardingPage() {
-  const { user } = useAppStore();
+  const user = useAuthStore((s) => s.user);
 
   const getStatusBadge = () => {
     switch (user?.onboardingStatus) {

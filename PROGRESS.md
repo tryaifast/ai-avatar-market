@@ -1,6 +1,6 @@
 # AI Avatar Market - 项目进度报告
 
-> 最近更新: 2026-04-11
+> 最近更新: 2026-04-12
 > 应用方法论: Superpowers + DeerFlow
 
 ---
@@ -112,6 +112,84 @@
 **修复**: 重写审核管理页面，添加分身审核和入驻申请两个Tab
 - 创建 `/api/admin/avatars` (GET) 和 `/api/admin/avatars/[id]` (PUT)
 - 创建 `/api/admin/applications` (GET) 和 `/api/admin/applications/[id]` (PUT)
+
+### Phase 9: 安全与认证修复 (2026-04-12) ✅
+
+#### Bug 1: Token 未持久化（严重）
+**现象**: 刷新页面后所有需要认证的操作失败，管理员后台重新打不开
+**根因**: `useAuthStore` 和 `useAdminAuthStore` 的 `partialize` 函数只持久化了 `{ user, isAuthenticated }` 和 `{ admin, isAdminAuthenticated }`，**遗漏了 `token` 字段**！刷新后 token 变回 null，所有带 Authorization header 的请求都失效
+**修复**: 两个 store 的 partialize 都加上 `token` 字段
+```typescript
+// useAuthStore
+partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated })
+// useAdminAuthStore
+partialize: (state) => ({ admin: state.admin, token: state.token, isAdminAuthenticated: state.isAdminAuthenticated })
+```
+
+#### Bug 2: 4个 Admin API 缺少管理员角色验证（严重安全漏洞）
+**现象**: 任何已登录用户（非管理员）都能访问 admin API 获取/修改数据
+**根因**: `/api/admin/avatars`、`/api/admin/avatars/[id]`、`/api/admin/applications`、`/api/admin/applications/[id]` 只调用了 `verifyAuth()` 验证登录，但没有检查 `user.role !== 'admin'`
+**修复**: 统一添加管理员角色验证逻辑
+```typescript
+const currentUser = await verifyAuth(req);
+if (!currentUser) return 401;
+const user = await DB.User.getById(currentUser.userId);
+if (!user || user.role !== 'admin') return 403;
+```
+
+#### Bug 3: POST /api/avatars 无认证 + creatorId 可伪造
+**现象**: 任何人都可以创建分身，且可以伪造 creatorId
+**修复**: 
+- 添加 `verifyAuth(req)` 验证登录
+- 强制 `data.creatorId = auth.userId`，忽略前端传入的值
+
+#### Bug 4: GET /api/avatars?creatorId= 可窥探他人分身
+**修复**: 添加 creatorId 与当前用户ID匹配验证
+
+#### Bug 5: rejectReason 未传递给 DB.Avatar.update
+**修复**: 审核拒绝时将 rejectReason 加入 updateData
+
+#### Bug 6: 前端创建/查看分身未传 Authorization header
+**修复**: 
+- `app/creator/avatar/create/page.tsx` — 从 useAuthStore 读取 token，fetch 时带 header
+- `app/creator/avatars/page.tsx` — 同上
+
+### Phase 10: Hydration根因修复 + 缺失表创建 (2026-04-12) ✅
+
+#### Bug 1: 创建分身提示需要登录（第4次发生同类问题）
+**现象**: 用户登录后进入个人中心创建分身，被提示"需要登录"
+**根因**: 
+1. Zustand persist hydration 用 `setTimeout(300ms)` 猜测，不可靠
+2. Creator Layout 没有包裹 ProtectedRoute，各子页面分散实现认证检查
+3. `useAppStore` 的 partialize 缺少 `token`，如果被任何页面使用导致认证丢失
+**修复**:
+1. **添加 `_hasHydrated` + `onRehydrateStorage`** — 精确知道何时hydration完成，不再靠setTimeout猜测
+2. **Creator Layout 包裹 ProtectedRoute** — 统一认证入口，子页面无需各自实现
+3. **删除冗余 `useAppStore`** — 与 `useAuthStore` 功能重叠且 partialize 缺 token
+4. **添加 `useAuthHydrated` hook + `authFetch` 辅助函数** — 统一认证方案
+5. 简化 creator/dashboard、creator/avatar/create、creator/avatars 三个页面
+
+#### Bug 2: 管理员群发消息提示 "Could not find the table 'public.admin_broadcasts'"
+**现象**: 管理员创建群发消息失败
+**根因**: `feedback_schema.sql` 和 `ai_config_schema.sql` 从未在 Supabase 实例中执行过！4个表不存在
+- `admin_broadcasts` — 群发消息
+- `feedbacks` — 用户反馈
+- `user_messages` — 用户消息收件箱
+- `ai_configs` — AI配置
+**修复**: 创建 `scripts/create_missing_tables.py` 脚本检查并输出建表SQL
+**需用户操作**: 在 Supabase Dashboard SQL Editor 中执行建表SQL
+
+#### 修改文件
+- `lib/store/index.ts` — 添加 _hasHydrated/onRehydrateStorage，删除 useAppStore，添加 useAuthHydrated/authFetch
+- `components/auth/ProtectedRoute.tsx` — 使用 _hasHydrated 替代 setTimeout
+- `components/auth/AdminProtectedRoute.tsx` — 同上
+- `app/creator/layout.tsx` — 包裹 ProtectedRoute，修复退出登录
+- `app/creator/dashboard/page.tsx` — 移除分散的 hydration+认证逻辑
+- `app/creator/avatar/create/page.tsx` — 同上，使用 authFetch
+- `app/creator/avatars/page.tsx` — 同上
+- `app/creator/onboarding/page.tsx` — useAppStore → useAuthStore
+- `app/creator/onboarding/status/page.tsx` — 同上
+- `scripts/create_missing_tables.py` — 新增建表检查脚本
 
 ---
 

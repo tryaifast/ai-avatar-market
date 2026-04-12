@@ -16,6 +16,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  _hasHydrated: boolean; // Zustand persist hydration 是否完成（关键：解决刷新后认证丢失）
   
   // Actions
   setUser: (user: User | null) => void;
@@ -32,6 +33,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isLoading: false,
       isAuthenticated: false,
+      _hasHydrated: false, // 默认false，hydration完成后置true
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
@@ -103,6 +105,19 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
+      // 关键修复：使用onRehydrateStorage精确知道hydration何时完成
+      // 不再依赖setTimeout猜测，而是等persist从localStorage恢复完毕后回调
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('[useAuthStore] Rehydration error:', error);
+          }
+          // hydration完成，设置标志
+          if (state) {
+            state._hasHydrated = true;
+          }
+        };
+      },
     }
   )
 );
@@ -115,6 +130,7 @@ interface AdminAuthState {
   token: string | null;
   isAdminAuthenticated: boolean;
   isLoading: boolean;
+  _hasHydrated: boolean; // Zustand persist hydration 是否完成
 
   // Actions
   setAdmin: (admin: User | null) => void;
@@ -156,6 +172,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       token: null,
       isAdminAuthenticated: false,
       isLoading: false,
+      _hasHydrated: false,
 
       setAdmin: (admin) => set({ admin, isAdminAuthenticated: !!admin }),
 
@@ -205,6 +222,16 @@ export const useAdminAuthStore = create<AdminAuthState>()(
     {
       name: 'admin-auth-storage',
       partialize: (state) => ({ admin: state.admin, token: state.token, isAdminAuthenticated: state.isAdminAuthenticated }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('[useAdminAuthStore] Rehydration error:', error);
+          }
+          if (state) {
+            state._hasHydrated = true;
+          }
+        };
+      },
     }
   )
 );
@@ -540,31 +567,32 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
 }));
 
 // ============================================
-// App Store - 综合应用状态（兼容旧代码）
+// 认证辅助 Hook — 等待 hydration 完成再判断认证状态
+// 用法：const { isHydrated, isAuthenticated, user } = useAuthHydrated();
+// 替代各页面分散的 setTimeout hydration 逻辑
 // ============================================
-interface AppState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  
-  // Actions
-  setUser: (user: User | null) => void;
-  logout: () => void;
+export function useAuthHydrated() {
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isHydrated = useAuthStore((s) => s._hasHydrated);
+  const token = useAuthStore((s) => s.token);
+  return { isHydrated, isAuthenticated, user, token };
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false,
-      
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      logout: () => set({ user: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'app-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
-    }
-  )
-);
+// 用户端 API 请求辅助函数 - 自动带 token
+// 用法：const res = await authFetch('/api/avatars', { method: 'POST', body: ... })
+export async function authFetch(url: string, options: RequestInit = {}) {
+  // 从 useAuthStore 读取 token
+  const token = useAuthStore.getState().token;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return fetch(url, { ...options, headers });
+}

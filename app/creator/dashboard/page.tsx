@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { 
   TrendingUp, Clock, CheckCircle, AlertCircle, ChevronRight,
   Plus, Star, DollarSign, ArrowLeft, MessageSquare
@@ -10,10 +9,9 @@ import {
 import { useAuthStore, useAvatarStore, useTaskStore } from '@/lib/store';
 
 // 创作者中心 - 使用真实数据
+// 认证保护由 Creator Layout 的 ProtectedRoute 统一处理
 export default function CreatorDashboard() {
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   
   const avatars = useAvatarStore((s) => s.avatars);
   const fetchAvatars = useAvatarStore((s) => s.fetchAvatars);
@@ -22,7 +20,6 @@ export default function CreatorDashboard() {
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [stats, setStats] = useState({
     todayEarnings: 0,
     weekEarnings: 0,
@@ -32,21 +29,8 @@ export default function CreatorDashboard() {
     totalTasks: 0,
   });
 
-  // 等待 Zustand persist hydration 完成
+  // 加载数据（认证由Layout保障，无需再检查）
   useEffect(() => {
-    const timer = setTimeout(() => setIsHydrated(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // 检查登录状态（hydration完成后）
-  useEffect(() => {
-    if (!isHydrated) return;
-    if (!isAuthenticated) {
-      router.push('/auth/login');
-      return;
-    }
-    
-    // 加载数据
     const loadData = async () => {
       setIsLoading(true);
       if (user) {
@@ -59,7 +43,7 @@ export default function CreatorDashboard() {
     };
     
     loadData();
-  }, [isAuthenticated, isHydrated, router, fetchAvatars, fetchTasks]);
+  }, [user, fetchAvatars, fetchTasks]);
 
   // 计算统计数据
   useEffect(() => {
@@ -130,15 +114,6 @@ export default function CreatorDashboard() {
     completed: { label: '已完成', color: 'bg-green-100 text-green-700', icon: CheckCircle },
     paid: { label: '已支付', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   };
-
-  if (!isHydrated || !isAuthenticated) {
-    return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-4 text-gray-500">加载中...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8">
