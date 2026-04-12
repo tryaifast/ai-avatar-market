@@ -335,6 +335,94 @@ if (!user || user.role !== 'admin') return 403;
 - 修复错误链接 `avatars/create` → `avatar/create`
 - 添加 `pending` 状态到 statusConfig
 
+### Phase 16: Avatar.status 类型修复 — 添加 'rejected' + 全页面对齐 (2026-04-12) ✅
+
+#### Bug: Vercel构建失败 — TypeScript类型比较错误
+**现象**: `npm run build` 报错：`This comparison appears to be unintentional because the types '"banned"' and '"rejected"' have no overlap`（settings/page.tsx:245）
+**根因**: `Avatar.status` 类型定义为 `'draft' | 'reviewing' | 'active' | 'paused' | 'banned'`，**缺少 `'rejected'`**。但多个页面和API已经在使用 `'rejected'` 状态值，TypeScript 发现类型不可能匹配而报编译错误
+**修复**:
+1. `lib/types/index.ts` — Avatar.status 联合类型添加 `'rejected'`
+2. `app/creator/avatars/[id]/settings/page.tsx` — 补充 `'banned'` 状态文本映射
+3. `app/creator/avatars/page.tsx` — statusConfig 移除不存在的键（approved/pending/inactive），添加 draft/banned，兜底值从 inactive 改为 draft
+4. `app/admin/avatars/page.tsx` — filter 类型添加 'rejected'/'draft'，筛选下拉添加对应选项，表格添加 rejected/draft 状态显示，rejected 状态添加上架按钮
+5. `app/api/admin/avatars/[id]/route.ts` — 状态白名单对齐类型定义（'approved'|'inactive' → 'approved'|'paused'|'banned'）
+
+**教训**: TypeScript联合类型必须与业务代码实际使用的值完全一致。修改类型定义前必须全局搜索所有使用位置。
+
+### Phase 17: 管理后台全面修复 + 会员系统基础 (2026-04-12) ✅
+
+#### 修复内容汇总
+
+**Bug1: 管理后台用户管理 — 查看/封禁/筛选全不可用**
+- **现象**: 用户"查看"按钮无onClick、封禁按钮调用的API不存在、无法按状态筛选
+- **根因**: 1) 查看`<button>`没有绑定任何事件 2) `app/api/admin/users/[id]/route.ts`文件不存在 3) 只按role筛选无status筛选
+- **修复**:
+  - 新建 `app/api/admin/users/[id]/route.ts` — GET获取用户详情(含分身/任务/申请) + PUT封禁/解封(含同步下架/恢复分身)
+  - 重写 `app/admin/users/page.tsx` — 用户详情弹窗(基本信息+分身列表+任务统计+入驻申请) + 状态筛选(正常/封禁) + 封禁操作反馈toast + 封禁确认弹窗
+
+**Bug2: 管理后台分身管理 — 下架后看不到**
+- **现象**: 分身下架(paused)后在管理后台消失
+- **根因**: 管理后台使用 `useAvatarStore.fetchAvatars()` 调用公共API `/api/avatars`，只返回 active 状态
+- **修复**:
+  - 重写 `app/admin/avatars/page.tsx` — 改用 `adminFetch('/api/admin/avatars')` 获取所有状态分身 + 添加详情弹窗 + 恢复上架按钮 + 封禁按钮 + 操作反馈 + 暂停数量统计
+
+**Bug3: 入驻审核无详情查看**
+- **现象**: 管理员审核入驻申请只能看到名称/职业/状态，没有查看详情的入口
+- **修复**:
+  - 重写 `app/admin/reviews/page.tsx` — 添加分身详情弹窗和入驻申请详情弹窗，显示全部申请信息(姓名/职业/邮箱/电话/年限/简介/技能/作品集链接/审核备注)
+
+**Bug4: 创作者分身查看 — 裸fetch+setTimeout**
+- **现象**: 点击分身"查看"页面可能加载失败或延迟2秒才显示"未找到"
+- **根因**: `fetchAvatarById` 用裸 fetch 不带认证，且有 2秒 setTimeout 才判断 notFound
+- **修复**:
+  - 重写 `app/creator/avatars/[id]/page.tsx` — 用 authFetch 替代裸 fetch，移除 setTimeout，直接根据 API 响应判断
+  - 重写 `AvatarAnalyticsClient.tsx` — 移除硬编码趋势图和假雇佣记录，改为展示真实数据+空状态
+
+**Bug5: 昵称和分身名称可重名**
+- **现象**: 注册时昵称可重复，分身名称也可重复
+- **修复**:
+  - 数据库: `users.name` 添加 UNIQUE 约束，`avatars(name, creator_id)` 添加复合唯一约束
+  - 后端: 注册API添加昵称查重，创建分身API添加同名查重
+  - 前端: 注册页添加昵称实时查重(500ms防抖 + 可用/已占用状态显示)
+  - 新增 `app/api/auth/check-name/route.ts` — 昵称可用性检查API
+
+**Bug6: 分身数量无限制 + 会员系统不存在**
+- **现象**: 用户可无限创建分身，无任何会员体系
+- **修复**:
+  - 数据库: `users` 表添加 `membership_type`(free/yearly/lifetime) + `membership_expires_at` 字段；新建 `membership_orders` 表
+  - 后端: 创建分身API添加数量校验(free=1, yearly/lifetime=10)
+  - 前端: 创建分身页添加达上限提示+会员升级入口；我的分身页添加会员升级横幅
+  - 类型: `User` 接口添加 `membershipType` + `membershipExpiresAt`
+  - SQL: `supabase/migrations/phase17_membership_and_constraints.sql`
+
+#### 修改文件清单
+1. `app/api/admin/users/[id]/route.ts` — **新建** 管理员用户操作API
+2. `app/admin/users/page.tsx` — **重写** 用户详情弹窗+状态筛选+封禁反馈
+3. `app/admin/reviews/page.tsx` — **重写** 审核详情弹窗(分身+申请)
+4. `app/admin/avatars/page.tsx` — **重写** 改用adminFetch+详情弹窗+恢复上架
+5. `app/creator/avatars/[id]/page.tsx` — **重写** authFetch+移除setTimeout
+6. `app/creator/avatars/[id]/AvatarAnalyticsClient.tsx` — **重写** 移除假数据+空状态
+7. `app/api/auth/register/route.ts` — 昵称查重
+8. `app/api/auth/check-name/route.ts` — **新建** 昵称可用性API
+9. `app/api/avatars/route.ts` — 分身数量校验+同名查重
+10. `app/auth/register/page.tsx` — 昵称实时查重UI
+11. `app/creator/avatar/create/page.tsx` — 分身数量限制提示+会员升级入口
+12. `app/creator/avatars/page.tsx` — 会员升级横幅+创建按钮联动
+13. `lib/types/index.ts` — User添加membershipType/membershipExpiresAt/onboardingStatus添加banned
+14. `lib/db/supabase.ts` — toUser映射添加membership字段+update支持
+15. `app/api/admin/users/route.ts` — 返回membershipType字段
+16. `supabase/migrations/phase17_membership_and_constraints.sql` — **新建** 数据库迁移
+
+#### ⚠️ 需要用户操作
+在 Supabase SQL Editor 中执行 `supabase/migrations/phase17_membership_and_constraints.sql`:
+```sql
+ALTER TABLE users ADD CONSTRAINT users_name_unique UNIQUE (name);
+ALTER TABLE avatars ADD CONSTRAINT avatars_name_creator_unique UNIQUE (name, creator_id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_type TEXT DEFAULT 'free' CHECK (membership_type IN ('free', 'yearly', 'lifetime'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS membership_expires_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+CREATE TABLE IF NOT EXISTS membership_orders (...);
+```
+
 ---
 
 ## 当前功能状态
@@ -357,9 +445,10 @@ if (!user || user.role !== 'admin') return 403;
 ### ⏳ 待完成
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 微信支付 | P1 | 真实支付集成 |
-| 文件上传 | P1 | 头像/记忆文件 |
+| 微信支付 | P1 | 真实支付集成（含会员购买） |
+| 文件上传 | P1 | 头像/记忆文件（限制500KB/人） |
 | 人机协同完整流程 | P2 | AI任务处理+真人审核 |
+| 会员支付流程 | P2 | 9.9元/年 + 99元终身，对接微信支付 |
 | 组件UI完善 | P3 | 响应式优化 |
 
 ---

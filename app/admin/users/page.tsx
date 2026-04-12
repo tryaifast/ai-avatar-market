@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
-// 用户管理页面内容 - 从API获取真实用户数据
+// 用户管理页面内容
 function AdminUsersContent() {
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'banned'>('all');
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const currentUser = useAdminAuthStore((s) => s.admin);
-  const token = currentUser?.id;
-  
-  // 修改密码弹窗状态
+
+  // 修改密码弹窗
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -22,6 +22,14 @@ function AdminUsersContent() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // 用户详情弹窗
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailUser, setDetailUser] = useState<any>(null);
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // 封禁/解封操作反馈
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -42,7 +50,16 @@ function AdminUsersContent() {
     }
   };
 
+  const showActionMsg = (type: 'success' | 'error', text: string) => {
+    setActionMessage({ type, text });
+    setTimeout(() => setActionMessage(null), 3000);
+  };
+
   const handleBan = async (userId: string, action: 'ban' | 'unban') => {
+    const actionText = action === 'ban' ? '封禁' : '解封';
+    const confirmed = window.confirm(`确定要${actionText}该用户吗？${action === 'ban' ? '封禁后该用户所有分身将自动下架。' : '解封后该用户之前被下架的分身将恢复为暂停状态。'}`);
+    if (!confirmed) return;
+
     try {
       const res = await adminFetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
@@ -50,14 +67,47 @@ function AdminUsersContent() {
       });
       const data = await res.json();
       if (data.success) {
+        showActionMsg('success', `${actionText}成功！`);
         fetchUsers();
+        // 如果详情弹窗打开，也刷新详情
+        if (showDetailModal && detailUser?.id === userId) {
+          fetchUserDetail(userId);
+        }
+      } else {
+        showActionMsg('error', data.error || `${actionText}失败`);
       }
     } catch (error) {
-      console.error('Failed to update user:', error);
+      showActionMsg('error', `${actionText}操作网络错误`);
     }
   };
 
-  // 打开修改密码弹窗
+  const fetchUserDetail = async (userId: string) => {
+    setIsLoadingDetail(true);
+    try {
+      const res = await adminFetch(`/api/admin/users/${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        setDetailUser(data);
+      } else {
+        showActionMsg('error', data.error || '获取用户详情失败');
+      }
+    } catch (error) {
+      showActionMsg('error', '获取用户详情网络错误');
+    } finally {
+      setIsLoadingDetail(false);
+    }
+  };
+
+  const openDetailModal = (userId: string) => {
+    fetchUserDetail(userId);
+    setShowDetailModal(true);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setDetailUser(null);
+  };
+
   const openPasswordModal = (user: any) => {
     setSelectedUser(user);
     setNewPassword('');
@@ -67,7 +117,6 @@ function AdminUsersContent() {
     setShowPasswordModal(true);
   };
 
-  // 关闭修改密码弹窗
   const closePasswordModal = () => {
     setShowPasswordModal(false);
     setSelectedUser(null);
@@ -77,17 +126,12 @@ function AdminUsersContent() {
     setPasswordSuccess('');
   };
 
-  // 提交修改密码
   const handleChangePassword = async () => {
     if (!selectedUser || !newPassword) return;
-    
-    // 验证密码长度
     if (newPassword.length < 6) {
       setPasswordError('新密码至少6位');
       return;
     }
-
-    // 如果是修改自己的密码，需要当前密码
     if (selectedUser.id === currentUser?.id && !currentPassword) {
       setPasswordError('请输入当前密码');
       return;
@@ -106,14 +150,10 @@ function AdminUsersContent() {
           currentPassword: selectedUser.id === currentUser?.id ? currentPassword : undefined,
         }),
       });
-
       const data = await res.json();
-
       if (data.success) {
         setPasswordSuccess('密码修改成功！');
-        setTimeout(() => {
-          closePasswordModal();
-        }, 1500);
+        setTimeout(() => closePasswordModal(), 1500);
       } else {
         setPasswordError(data.error || '修改失败');
       }
@@ -124,10 +164,17 @@ function AdminUsersContent() {
     }
   };
 
+  // 判断用户是否被封禁
+  const isBanned = (user: any) => user.onboardingStatus === 'banned';
+
   const filteredUsers = users.filter((u: any) => {
     const matchesSearch = u.name?.includes(search) || u.email?.includes(search);
-    const matchesFilter = filter === 'all' || u.role === filter;
-    return matchesSearch && matchesFilter;
+    const matchesRole = roleFilter === 'all' || u.role === roleFilter;
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && !isBanned(u)) ||
+      (statusFilter === 'banned' && isBanned(u));
+    return matchesSearch && matchesRole && matchesStatus;
   });
 
   return (
@@ -144,8 +191,17 @@ function AdminUsersContent() {
       </header>
 
       <div className="p-6 max-w-6xl mx-auto">
+        {/* 操作反馈 */}
+        {actionMessage && (
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+            actionMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {actionMessage.text}
+          </div>
+        )}
+
         {/* 搜索和筛选 */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4 mb-6 flex-wrap">
           <input
             type="text"
             value={search}
@@ -154,15 +210,25 @@ function AdminUsersContent() {
             className="input max-w-sm"
           />
           <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as any)}
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as any)}
             className="input w-auto"
           >
-            <option value="all">全部用户</option>
+            <option value="all">全部角色</option>
             <option value="creator">创作者</option>
             <option value="client">需求方</option>
             <option value="admin">管理员</option>
           </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="input w-auto"
+          >
+            <option value="all">全部状态</option>
+            <option value="active">正常</option>
+            <option value="banned">已封禁</option>
+          </select>
+          <span className="text-sm text-gray-500">共 {filteredUsers.length} 个用户</span>
         </div>
 
         {/* 用户列表 */}
@@ -198,26 +264,29 @@ function AdminUsersContent() {
                           user.role === 'admin' ? 'bg-red-100 text-red-700' :
                           user.role === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
                         }`}>
-                          {user.role === 'admin' ? '管理员' : 
-                           user.role === 'creator' ? '创作者' : 
+                          {user.role === 'admin' ? '管理员' :
+                           user.role === 'creator' ? '创作者' :
                            user.role === 'client' ? '需求方' : user.role}
                         </span>
                       </td>
                       <td>
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          user.onboardingStatus === 'approved' ? 'bg-green-100 text-green-700' :
-                          user.onboardingStatus === 'pending' || user.onboardingStatus === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
+                          isBanned(user) ? 'bg-red-100 text-red-700' :
+                          user.onboardingStatus === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
                         }`}>
-                          {user.onboardingStatus === 'approved' ? '正常' :
-                           user.onboardingStatus === 'pending' || user.onboardingStatus === 'submitted' ? '审核中' :
-                           user.onboardingStatus === 'rejected' ? '已拒绝' : user.onboardingStatus || '正常'}
+                          {isBanned(user) ? '已封禁' :
+                           user.onboardingStatus === 'submitted' ? '审核中' :
+                           user.onboardingStatus === 'rejected' ? '已拒绝' : '正常'}
                         </span>
                       </td>
                       <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <button className="text-blue-600 hover:underline text-sm">
+                          <button
+                            onClick={() => openDetailModal(user.id)}
+                            className="text-blue-600 hover:underline text-sm"
+                          >
                             查看
                           </button>
                           <button
@@ -226,7 +295,7 @@ function AdminUsersContent() {
                           >
                             改密码
                           </button>
-                          {user.onboardingStatus !== 'banned' && (
+                          {user.id !== currentUser?.id && !isBanned(user) && (
                             <button
                               onClick={() => handleBan(user.id, 'ban')}
                               className="text-red-600 hover:underline text-sm"
@@ -234,7 +303,7 @@ function AdminUsersContent() {
                               封禁
                             </button>
                           )}
-                          {user.onboardingStatus === 'banned' && (
+                          {isBanned(user) && (
                             <button
                               onClick={() => handleBan(user.id, 'unban')}
                               className="text-green-600 hover:underline text-sm"
@@ -255,6 +324,155 @@ function AdminUsersContent() {
         </div>
       </div>
 
+      {/* 用户详情弹窗 */}
+      {showDetailModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={closeDetailModal}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {isLoadingDetail ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="mt-2 text-gray-500">加载中...</p>
+              </div>
+            ) : detailUser ? (
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-bold">用户详情</h2>
+                  <button onClick={closeDetailModal} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                </div>
+
+                {/* 基本信息 */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-3">基本信息</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-gray-500">昵称：</span><span className="font-medium">{detailUser.user?.name || '-'}</span></div>
+                    <div><span className="text-gray-500">邮箱：</span><span className="font-medium">{detailUser.user?.email || '-'}</span></div>
+                    <div><span className="text-gray-500">角色：</span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        detailUser.user?.role === 'admin' ? 'bg-red-100 text-red-700' :
+                        detailUser.user?.role === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {detailUser.user?.role === 'admin' ? '管理员' :
+                         detailUser.user?.role === 'creator' ? '创作者' : '需求方'}
+                      </span>
+                    </div>
+                    <div><span className="text-gray-500">状态：</span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        isBanned(detailUser.user) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {isBanned(detailUser.user) ? '已封禁' : '正常'}
+                      </span>
+                    </div>
+                    <div><span className="text-gray-500">入驻状态：</span><span className="font-medium">{detailUser.user?.onboardingStatus || '未申请'}</span></div>
+                    <div><span className="text-gray-500">信用分：</span><span className="font-medium">{detailUser.user?.creditScore || 80}</span></div>
+                    <div><span className="text-gray-500">余额：</span><span className="font-medium">¥{Number(detailUser.user?.walletBalance || 0).toFixed(2)}</span></div>
+                    <div><span className="text-gray-500">注册时间：</span><span className="font-medium">{detailUser.user?.createdAt ? new Date(detailUser.user.createdAt).toLocaleString() : '-'}</span></div>
+                  </div>
+                  {detailUser.user?.bio && (
+                    <div className="mt-3"><span className="text-gray-500 text-sm">简介：</span><span className="text-sm">{detailUser.user.bio}</span></div>
+                  )}
+                  {detailUser.user?.identity?.length > 0 && (
+                    <div className="mt-2"><span className="text-gray-500 text-sm">身份标签：</span>
+                      {detailUser.user.identity.map((tag: string) => (
+                        <span key={tag} className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded mr-1">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 分身列表 */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-3">分身（{detailUser.avatars?.length || 0}个）</h3>
+                  {detailUser.avatars?.length > 0 ? (
+                    <div className="space-y-2">
+                      {detailUser.avatars.map((avatar: any) => (
+                        <div key={avatar.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <span className="text-sm font-medium">{avatar.name}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            avatar.status === 'active' ? 'bg-green-100 text-green-700' :
+                            avatar.status === 'banned' ? 'bg-red-100 text-red-700' :
+                            avatar.status === 'paused' ? 'bg-orange-100 text-orange-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {avatar.status === 'active' ? '已上线' :
+                             avatar.status === 'banned' ? '已封禁' :
+                             avatar.status === 'paused' ? '已暂停' :
+                             avatar.status === 'reviewing' ? '审核中' : avatar.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">暂无分身</p>
+                  )}
+                </div>
+
+                {/* 任务统计 */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-3">任务统计</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="p-3 bg-gray-50 rounded">
+                      <p className="text-gray-500">作为客户发布</p>
+                      <p className="text-lg font-semibold">{detailUser.taskStats?.asClient || 0} 个</p>
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded">
+                      <p className="text-gray-500">已完成</p>
+                      <p className="text-lg font-semibold">{detailUser.taskStats?.completed || 0} 个</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 入驻申请 */}
+                {detailUser.applications?.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-500 mb-3">入驻申请</h3>
+                    <div className="space-y-2">
+                      {detailUser.applications.map((app: any) => (
+                        <div key={app.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <span className="text-sm">{app.profession || '-'}</span>
+                          <span className={`px-2 py-0.5 rounded text-xs ${
+                            app.status === 'approved' ? 'bg-green-100 text-green-700' :
+                            app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {app.status === 'approved' ? '已通过' :
+                             app.status === 'rejected' ? '已拒绝' : '审核中'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 操作按钮 */}
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  {detailUser.user?.id !== currentUser?.id && !isBanned(detailUser.user) && (
+                    <button
+                      onClick={() => { handleBan(detailUser.user.id, 'ban'); closeDetailModal(); }}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                    >
+                      封禁用户
+                    </button>
+                  )}
+                  {isBanned(detailUser.user) && (
+                    <button
+                      onClick={() => { handleBan(detailUser.user.id, 'unban'); closeDetailModal(); }}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                    >
+                      解封用户
+                    </button>
+                  )}
+                  <button onClick={closeDetailModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm">
+                    关闭
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-center text-gray-500 py-8">无法加载用户详情</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 修改密码弹窗 */}
       {showPasswordModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -262,12 +480,10 @@ function AdminUsersContent() {
             <h2 className="text-lg font-bold mb-4">
               修改密码 - {selectedUser.name}
             </h2>
-            
+
             {selectedUser.id === currentUser?.id && (
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  当前密码
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">当前密码</label>
                 <input
                   type="password"
                   value={currentPassword}
@@ -279,9 +495,7 @@ function AdminUsersContent() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                新密码
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
               <input
                 type="password"
                 value={newPassword}
@@ -291,12 +505,8 @@ function AdminUsersContent() {
               />
             </div>
 
-            {passwordError && (
-              <p className="text-red-600 text-sm mb-4">{passwordError}</p>
-            )}
-            {passwordSuccess && (
-              <p className="text-green-600 text-sm mb-4">{passwordSuccess}</p>
-            )}
+            {passwordError && <p className="text-red-600 text-sm mb-4">{passwordError}</p>}
+            {passwordSuccess && <p className="text-green-600 text-sm mb-4">{passwordSuccess}</p>}
 
             <div className="flex justify-end gap-3">
               <button
@@ -321,7 +531,6 @@ function AdminUsersContent() {
   );
 }
 
-// 导出带权限保护的页面
 export default function AdminUsersPage() {
   return (
     <AdminProtectedRoute>

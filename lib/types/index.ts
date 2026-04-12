@@ -15,7 +15,9 @@ export interface User {
   identity: IdentityTag[]; // 身份标签：程序员、设计师、运营等
   bio?: string;
   createdAt: string;
-  onboardingStatus?: 'pending' | 'submitted' | 'approved' | 'rejected'; // 创作者入驻状态
+  onboardingStatus?: 'pending' | 'submitted' | 'approved' | 'rejected' | 'banned'; // 创作者入驻状态
+  membershipType?: 'free' | 'yearly' | 'lifetime'; // 会员类型
+  membershipExpiresAt?: string; // 年费会员到期时间
   wallet: {
     balance: number; // 余额（分）
     totalEarned: number; // 累计收益

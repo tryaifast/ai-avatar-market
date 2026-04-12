@@ -4,9 +4,16 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { 
   Plus, Bot, Clock, CheckCircle, XCircle, Eye, Settings,
-  TrendingUp, Users, ArrowLeft, Sparkles, Shield
+  TrendingUp, Users, ArrowLeft, Sparkles, Shield, Crown
 } from 'lucide-react';
 import { useAvatarStore, useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
+
+// 分身数量限制
+const AVATAR_LIMITS: Record<string, number> = {
+  free: 1,
+  yearly: 10,
+  lifetime: 10,
+};
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   active: {
@@ -47,8 +54,9 @@ export default function MyAvatarsPage() {
   const user = useAuthStore((s) => s.user);
   const { myApplication, fetchMyApplication } = useApplicationStore();
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [avatarLimitReached, setAvatarLimitReached] = useState(false);
 
-  // 检查入驻状态
+  // 检查入驻状态 + 分身数量
   useEffect(() => {
     if (user?.id) {
       fetchMyApplication(user.id).finally(() => setOnboardingChecked(true));
@@ -61,11 +69,14 @@ export default function MyAvatarsPage() {
 
   const fetchMyAvatars = async () => {
     try {
-      // 使用 authFetch 自动带 token
       const res = await authFetch(`/api/avatars?creatorId=${user?.id}`);
       const data = await res.json();
       if (data.success) {
         setAvatars(data.avatars || []);
+        // 检查分身数量限制
+        const membershipType = (user as any)?.membershipType || 'free';
+        const limit = AVATAR_LIMITS[membershipType] || 1;
+        setAvatarLimitReached((data.avatars || []).length >= limit);
       }
     } catch (error) {
       console.error('Failed to fetch avatars:', error);
@@ -87,9 +98,9 @@ export default function MyAvatarsPage() {
               <h1 className="text-lg font-semibold text-gray-900">我的分身</h1>
             </div>
             <Link
-              href={isApproved ? "/creator/avatar/create" : "/creator/onboarding"}
-              className={`btn-primary ${!isApproved ? 'opacity-50 cursor-not-allowed' : ''}`}
-              onClick={(e) => { if (!isApproved) e.preventDefault(); }}
+              href={isApproved && !avatarLimitReached ? "/creator/avatar/create" : "#"}
+              className={`btn-primary ${(!isApproved || avatarLimitReached) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={(e) => { if (!isApproved || avatarLimitReached) e.preventDefault(); }}
             >
               <Plus className="w-4 h-4 mr-2" />
               创建新分身
@@ -159,6 +170,25 @@ export default function MyAvatarsPage() {
                 </div>
               </div>
             </div>
+
+            {/* 会员升级提示 */}
+            {avatarLimitReached && (user as any)?.membershipType === 'free' && (
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100 rounded-xl p-4 mb-8 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Crown className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-gray-900">免费用户只能创建1个分身</p>
+                    <p className="text-sm text-gray-500">升级会员可创建最多10个分身 · 年费¥9.9 / 终身¥99</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => alert('会员系统开发中，敬请期待！')}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 whitespace-nowrap"
+                >
+                  升级会员
+                </button>
+              </div>
+            )}
 
             {/* Avatars List */}
             {myAvatars.length > 0 ? (

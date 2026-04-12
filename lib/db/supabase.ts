@@ -62,6 +62,8 @@ export const UserDB = {
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.password !== undefined) dbUpdates.password = updates.password;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
+    if ((updates as any).membershipType !== undefined) dbUpdates.membership_type = (updates as any).membershipType;
+    if ((updates as any).membershipExpiresAt !== undefined) dbUpdates.membership_expires_at = (updates as any).membershipExpiresAt;
 
     const { data, error } = await db.from('users').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
@@ -80,6 +82,8 @@ export const UserDB = {
       identity: data.identity || [],
       bio: data.bio,
       onboardingStatus: data.onboarding_status || undefined,
+      membershipType: data.membership_type || 'free',
+      membershipExpiresAt: data.membership_expires_at || undefined,
       createdAt: data.created_at,
       wallet: {
         balance: data.wallet_balance || 0,

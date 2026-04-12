@@ -1,26 +1,41 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAvatarStore } from '@/lib/store';
+import { useAvatarStore, authFetch } from '@/lib/store';
 import { AvatarAnalyticsClient } from './AvatarAnalyticsClient';
-import type { Avatar } from '@/lib/store';
 
 export default function AvatarAnalyticsPage({ params }: { params: { id: string } }) {
-  const { currentAvatar, fetchAvatarById, isLoading } = useAvatarStore();
+  const { currentAvatar, isLoading, setCurrentAvatar } = useAvatarStore();
   const [notFound, setNotFound] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    fetchAvatarById(params.id).then(() => {
-      // If avatar not found after fetch, show not found
-      setTimeout(() => {
-        if (!useAvatarStore.getState().currentAvatar) {
+    const fetchAvatar = async () => {
+      setFetching(true);
+      setNotFound(false);
+      try {
+        // 使用 authFetch 替代裸 fetch，确保带认证token
+        const res = await authFetch(`/api/avatars/${params.id}`);
+        const data = await res.json();
+        if (data.success && data.avatar) {
+          setCurrentAvatar(data.avatar);
+        } else {
+          setCurrentAvatar(null);
           setNotFound(true);
         }
-      }, 2000);
-    });
-  }, [params.id, fetchAvatarById]);
+      } catch (error) {
+        console.error('Failed to fetch avatar:', error);
+        setCurrentAvatar(null);
+        setNotFound(true);
+      } finally {
+        setFetching(false);
+      }
+    };
 
-  if (isLoading) {
+    fetchAvatar();
+  }, [params.id, setCurrentAvatar]);
+
+  if (fetching || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

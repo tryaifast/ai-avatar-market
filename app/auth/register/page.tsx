@@ -1,10 +1,10 @@
 // @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bot, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Bot, Mail, Lock, User, Eye, EyeOff, ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 
 export default function RegisterPage() {
@@ -17,42 +17,83 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const { register, isLoading } = useAuthStore();
 
+  // 昵称查重状态
+  const [nameCheck, setNameCheck] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [nameCheckTimer, setNameCheckTimer] = useState<NodeJS.Timeout | null>(null);
+
+  const checkNameAvailability = useCallback(async (nameToCheck: string) => {
+    if (!nameToCheck || nameToCheck.length < 2) {
+      setNameCheck('idle');
+      return;
+    }
+    setNameCheck('checking');
+    try {
+      const res = await fetch(`/api/auth/check-name?name=${encodeURIComponent(nameToCheck)}`);
+      const data = await res.json();
+      if (data.available) {
+        setNameCheck('available');
+      } else {
+        setNameCheck('taken');
+      }
+    } catch {
+      setNameCheck('idle');
+    }
+  }, []);
+
+  const handleNameChange = (value: string) => {
+    setName(value);
+    // 清除之前的定时器
+    if (nameCheckTimer) {
+      clearTimeout(nameCheckTimer);
+    }
+    if (!value || value.length < 2) {
+      setNameCheck('idle');
+      return;
+    }
+    // 500ms 防抖后检查
+    setNameCheck('checking');
+    const timer = setTimeout(() => {
+      checkNameAvailability(value);
+    }, 500);
+    setNameCheckTimer(timer);
+  };
+
   const checkDeviceLimit = (): { allowed: boolean; message?: string } => {
     const deviceKey = 'device_registrations';
     const today = new Date().toISOString().split('T')[0];
-    
+
     const stored = localStorage.getItem(deviceKey);
-    let records: { date: string; count: number } = stored 
-      ? JSON.parse(stored) 
+    let records: { date: string; count: number } = stored
+      ? JSON.parse(stored)
       : { date: today, count: 0 };
-    
+
     if (records.date !== today) {
       records = { date: today, count: 0 };
     }
-    
+
     if (records.count >= 3) {
-      return { 
-        allowed: false, 
-        message: '本设备今日注册次数已达上限（3次），请明天再试' 
+      return {
+        allowed: false,
+        message: '本设备今日注册次数已达上限（3次），请明天再试'
       };
     }
-    
+
     return { allowed: true };
   };
 
   const recordDeviceRegistration = () => {
     const deviceKey = 'device_registrations';
     const today = new Date().toISOString().split('T')[0];
-    
+
     const stored = localStorage.getItem(deviceKey);
-    let records: { date: string; count: number } = stored 
-      ? JSON.parse(stored) 
+    let records: { date: string; count: number } = stored
+      ? JSON.parse(stored)
       : { date: today, count: 0 };
-    
+
     if (records.date !== today) {
       records = { date: today, count: 0 };
     }
-    
+
     records.count += 1;
     localStorage.setItem(deviceKey, JSON.stringify(records));
   };
@@ -60,6 +101,16 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (name.length < 2) {
+      setError('昵称至少2个字符');
+      return;
+    }
+
+    if (nameCheck === 'taken') {
+      setError('该昵称已被使用，请换一个');
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('两次输入的密码不一致');
@@ -71,7 +122,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // 风控: 检查设备注册限制
     const deviceCheck = checkDeviceLimit();
     if (!deviceCheck.allowed) {
       setError(deviceCheck.message || '注册受限');
@@ -82,26 +132,33 @@ export default function RegisterPage() {
 
     if (result.success) {
       recordDeviceRegistration();
-      // 注册成功后延迟跳转，等待 Zustand persist 写入 localStorage
       setTimeout(() => {
         router.push('/landing');
       }, 300);
     } else {
-      // 翻译常见错误
       const errMsg = result.error || '注册失败，请重试';
       if (errMsg.includes('already registered') || errMsg.includes('已注册')) {
         setError('该邮箱已注册，请直接登录');
+      } else if (errMsg.includes('已被使用') || errMsg.includes('昵称')) {
+        setError(errMsg);
       } else {
         setError(errMsg);
       }
     }
   };
 
+  // 昵称右侧状态图标
+  const nameStatusIcon = () => {
+    if (nameCheck === 'checking') return <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />;
+    if (nameCheck === 'available') return <CheckCircle className="w-5 h-5 text-green-500" />;
+    if (nameCheck === 'taken') return <XCircle className="w-5 h-5 text-red-500" />;
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      {/* Back to Home */}
-      <Link 
-        href="/" 
+      <Link
+        href="/"
         className="fixed top-4 left-4 flex items-center gap-2 text-gray-600 hover:text-gray-900 bg-white/80 backdrop-blur px-4 py-2 rounded-lg shadow-sm"
       >
         <ArrowLeft className="w-4 h-4" />
@@ -109,7 +166,6 @@ export default function RegisterPage() {
       </Link>
 
       <div className="max-w-md w-full space-y-8">
-        {/* Logo */}
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Bot className="w-12 h-12 text-blue-600" />
@@ -119,7 +175,6 @@ export default function RegisterPage() {
           <p className="mt-2 text-gray-600">创建账号，开始你的AI分身之旅</p>
         </div>
 
-        {/* Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
@@ -139,11 +194,22 @@ export default function RegisterPage() {
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="你的昵称"
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:border-transparent ${
+                    nameCheck === 'available' ? 'border-green-300 focus:ring-green-500' :
+                    nameCheck === 'taken' ? 'border-red-300 focus:ring-red-500' :
+                    'border-gray-300 focus:ring-blue-500'
+                  }`}
+                  placeholder="你的昵称（2-20个字符）"
+                  maxLength={20}
                 />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {nameStatusIcon()}
+                </div>
               </div>
+              {nameCheck === 'available' && <p className="mt-1 text-xs text-green-600">✓ 昵称可用</p>}
+              {nameCheck === 'taken' && <p className="mt-1 text-xs text-red-600">✗ 该昵称已被使用</p>}
+              {nameCheck === 'checking' && <p className="mt-1 text-xs text-gray-400">检查中...</p>}
             </div>
 
             <div>
@@ -177,7 +243,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
+                  placeholder="至少6位"
                 />
                 <button
                   type="button"
@@ -202,7 +268,7 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
+                  placeholder="再次输入密码"
                 />
               </div>
             </div>
@@ -210,7 +276,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || nameCheck === 'taken' || nameCheck === 'checking'}
             className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? '注册中...' : '注册'}

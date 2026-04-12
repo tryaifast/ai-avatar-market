@@ -18,11 +18,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 检查用户是否已存在
+    // 检查用户是否已存在（邮箱）
     const existingUser = await DB.User.getByEmail(email);
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Email already registered' },
+        { error: '该邮箱已被注册' },
+        { status: 409 }
+      );
+    }
+
+    // 检查昵称是否已被使用
+    const { data: nameCheck } = await (DB.db.from('users') as any)
+      .select('id')
+      .eq('name', name)
+      .limit(1);
+    if (nameCheck && nameCheck.length > 0) {
+      return NextResponse.json(
+        { error: '该昵称已被使用，请换一个' },
         { status: 409 }
       );
     }

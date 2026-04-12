@@ -34,6 +34,8 @@ export async function GET(req: NextRequest) {
       name: u.name,
       role: u.role,
       onboardingStatus: u.onboarding_status,
+      membershipType: u.membership_type || 'free',
+      membershipExpiresAt: u.membership_expires_at,
       createdAt: u.created_at,
       updatedAt: u.updated_at,
     }));

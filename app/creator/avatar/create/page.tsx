@@ -10,7 +10,14 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { identityTags, communicationStyles, taskTypes } from '@/lib/utils';
-import { useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
+import { useAuthStore, useApplicationStore, useAvatarStore, authFetch } from '@/lib/store';
+
+// 分身数量限制配置
+const AVATAR_LIMITS: Record<string, number> = {
+  free: 1,
+  yearly: 10,
+  lifetime: 10,
+};
 
 const steps = [
   { id: 'basic', label: '基本信息', description: '名称、头像、简介' },
@@ -23,14 +30,24 @@ export default function CreateAvatarPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { myApplication, fetchMyApplication } = useApplicationStore();
+  const { avatars, fetchAvatars } = useAvatarStore();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [avatarLimitReached, setAvatarLimitReached] = useState(false);
 
-  // 检查入驻状态
+  // 检查入驻状态 + 分身数量
   useEffect(() => {
     if (user?.id) {
       fetchMyApplication(user.id).finally(() => setOnboardingChecked(true));
+      // 获取当前用户的分身列表
+      authFetch(`/api/avatars?creatorId=${user.id}`).then(res => res.json()).then(data => {
+        if (data.success) {
+          const membershipType = (user as any).membershipType || 'free';
+          const limit = AVATAR_LIMITS[membershipType] || 1;
+          setAvatarLimitReached((data.avatars || []).length >= limit);
+        }
+      });
     }
   }, [user?.id]);
 
@@ -55,6 +72,57 @@ export default function CreateAvatarPage() {
           >
             {!myApplication ? '申请入驻' : '查看状态'}
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // 分身数量达上限
+  if (onboardingChecked && avatarLimitReached) {
+    const membershipType = (user as any)?.membershipType || 'free';
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="card p-8 text-center max-w-md">
+          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Bot className="w-8 h-8 text-orange-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">分身数量已达上限</h2>
+          <p className="text-gray-600 mb-2">
+            {membershipType === 'free'
+              ? '免费用户最多可创建 1 个分身'
+              : `会员最多可创建 ${AVATAR_LIMITS[membershipType]} 个分身`}
+          </p>
+          <p className="text-gray-500 text-sm mb-6">
+            {membershipType === 'free'
+              ? '升级会员可创建最多 10 个分身'
+              : '你可以删除不需要的分身后重新创建'}
+          </p>
+          {membershipType === 'free' && (
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6 text-left">
+              <h3 className="font-medium text-gray-900 mb-2">💡 升级会员</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>年费会员</span>
+                  <span className="font-medium text-blue-600">¥9.9/年</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>终身会员</span>
+                  <span className="font-medium text-blue-600">¥99/永久</span>
+                </div>
+                <p className="text-gray-500 text-xs">会员权益：10个分身 + 优先推荐 + 专属标识</p>
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 justify-center">
+            <Link href="/creator/avatars" className="btn-secondary">
+              管理分身
+            </Link>
+            {membershipType === 'free' && (
+              <button className="btn-primary" onClick={() => alert('会员系统开发中，敬请期待！')}>
+                升级会员
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
