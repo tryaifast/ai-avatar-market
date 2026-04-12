@@ -65,12 +65,31 @@
 - [x] 创建AI配置管理功能（数据库表、API、管理页面）
 
 ### Phase 7: 认证系统修复 (2026-04-12) ✅
+
+#### Bug 1: 创作者中心跳转登录页
+**问题**: 用户登录后点击「创作者中心」，被重定向到登录页
+**根因**: Zustand persist hydration 是异步的，页面首次渲染时 `isAuthenticated=false`，useEffect 立即触发跳转
+**修复**: 添加 `isHydrated` 状态，300ms 延迟后检查认证，未完成时显示 loading
+**文件**: `app/creator/dashboard/page.tsx`
+
+#### Bug 2: 管理员后台看不到用户列表
+**问题**: 管理员登录后访问「用户管理」，页面空白
+**根因**: fetch('/api/admin/users') 没带 Authorization header，verifyAuth 返回 null → 401
+**修复**: 
+- AdminAuthStore 新增 `token` 字段保存 JWT
+- 创建 `adminFetch()` 辅助函数自动添加 Authorization header
+- 所有管理员页面改用 `adminFetch()`
+**文件**: `lib/store/index.ts`, `app/admin/*/page.tsx` (4个页面12处调用)
+
+#### Bug 3: 管理员群发消息提示登录
+**问题**: 管理员发消息提示"请先登录"
+**根因**: 同 Bug 2，fetch 没带 token
+**修复**: 同 Bug 2，使用 `adminFetch()`
+**文件**: `app/admin/messages/page.tsx`
+
+#### 其他修复
 - [x] 管理员/用户认证独立 - `useAdminAuthStore`(admin-auth-storage) / `useAuthStore`(auth-storage)
-- [x] AdminAuthStore 添加 `token` 字段 - 登录时保存JWT token
-- [x] 创建 `adminFetch()` 辅助函数 - 自动从localStorage读取token并添加Authorization header
-- [x] 所有4个管理员页面12处fetch调用改用 `adminFetch()`
-- [x] 创作者中心添加hydration等待 - 防止Zustand persist未恢复时跳转登录页
-- [x] 修复 `fetchTasks(userId, type)` 参数错误（2个参数，之前传0/1个）
+- [x] 修复 `fetchTasks(userId, type)` 参数错误
 - [x] 修复创建分身使用真实API调用
 - [x] 修复分身状态显示（支持 pending 审核中状态）
 
