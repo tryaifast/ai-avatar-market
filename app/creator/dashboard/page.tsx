@@ -41,10 +41,12 @@ export default function CreatorDashboard() {
     // 加载数据
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([
-        fetchAvatars(),
-        fetchTasks(user.id, 'creator'),
-      ]);
+      if (user) {
+        await Promise.all([
+          fetchAvatars(),
+          fetchTasks(user.id, 'creator'),
+        ]);
+      }
       setIsLoading(false);
     };
     
