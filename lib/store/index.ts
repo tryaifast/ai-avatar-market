@@ -13,6 +13,7 @@ export type { User, Avatar, Task, Notification };
 // ============================================
 interface AuthState {
   user: User | null;
+  token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      token: null,
       isLoading: false,
       isAuthenticated: false,
 
@@ -49,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
             return { success: false, error: data.error };
           }
 
-          set({ user: data.user, isAuthenticated: true, isLoading: false });
+          set({ user: data.user, token: data.token || null, isAuthenticated: true, isLoading: false });
           return { success: true };
         } catch (error: any) {
           set({ isLoading: false });
@@ -73,7 +75,7 @@ export const useAuthStore = create<AuthState>()(
             return { success: false, error: data.error };
           }
 
-          set({ user: data.user, isAuthenticated: true, isLoading: false });
+          set({ user: data.user, token: data.token || null, isAuthenticated: true, isLoading: false });
           return { success: true };
         } catch (error: any) {
           set({ isLoading: false });
@@ -82,7 +84,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        set({ user: null, token: null, isAuthenticated: false });
       },
 
       updateProfile: async (updates) => {
@@ -221,6 +223,7 @@ interface AvatarState {
   createAvatar: (data: any) => Promise<{ success: boolean; avatar?: Avatar; error?: string }>;
   updateAvatar: (id: string, data: any) => Promise<{ success: boolean; error?: string }>;
   setCurrentAvatar: (avatar: Avatar | null) => void;
+  setAvatars: (avatars: Avatar[]) => void;
 }
 
 export const useAvatarStore = create<AvatarState>()((set, get) => ({
@@ -301,6 +304,7 @@ export const useAvatarStore = create<AvatarState>()((set, get) => ({
   },
 
   setCurrentAvatar: (avatar) => set({ currentAvatar: avatar }),
+  setAvatars: (avatars) => set({ avatars }),
 }));
 
 // ============================================

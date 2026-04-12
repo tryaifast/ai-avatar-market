@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { DB } from '@/lib/db/supabase';
+import { generateToken } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,12 +40,16 @@ export async function POST(req: NextRequest) {
       bio: '',
     });
 
-    // 返回用户信息（不包含密码）
+    // 生成 JWT token
+    const token = generateToken({ userId: user.id!, email: user.email });
+
+    // 返回用户信息（不包含密码）+ token
     const { password: _, ...userWithoutPassword } = user;
 
     return NextResponse.json({
       success: true,
       user: userWithoutPassword,
+      token,
     });
   } catch (error: any) {
     console.error('Register error:', error);
