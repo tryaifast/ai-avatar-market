@@ -283,6 +283,16 @@ if (!user || user.role !== 'admin') return 403;
 - `creator/avatar/create/page.tsx`: div 差3个（有 @ts-nocheck，可能不影响构建）
 - `admin/ai-config/page.tsx`: button 差1个
 
+### Phase 14: Zustand persist Rehydration 循环引用修复 (2026-04-12) ✅
+
+#### Bug: 登录后页面卡死 — `Cannot access 'n' before initialization`
+**现象**: 登录管理页面或点击首页昵称后，页面一直卡在加载状态
+**控制台错误**: `[useAuthStore] Rehydration error: ReferenceError: Cannot access 'n' before initialization` + `[useAdminAuthStore] Rehydration error: ReferenceError: Cannot access 'i' before initialization`
+**根因**: `onRehydrateStorage` 回调中使用 `useAuthStore.setState({ _hasHydrated: true })` 引用了 store 自身。在生产构建（minified）中，`const n = create(...)` 的赋值还没完成时，回调闭包就引用了 `n`，导致 `ReferenceError: Cannot access 'n' before initialization`
+**修复**: 使用 Zustand 官方推荐的模式 — 在 store state 中定义 `setHasHydrated` action，在 `onRehydrateStorage` 回调中通过 `state.setHasHydrated(true)` 调用，避免引用 store 自身
+**参考**: [Zustand Discussion #1572](https://github.com/pmndrs/zustand/discussions/1572)
+**文件**: `lib/store/index.ts` — 两个 store（useAuthStore + useAdminAuthStore）都修复
+
 ---
 
 ## 当前功能状态
