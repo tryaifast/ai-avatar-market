@@ -22,6 +22,7 @@ export default function CreatorDashboard() {
   const fetchTasks = useTaskStore((s) => s.fetchTasks);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
   const [stats, setStats] = useState({
     todayEarnings: 0,
     weekEarnings: 0,
@@ -31,8 +32,15 @@ export default function CreatorDashboard() {
     totalTasks: 0,
   });
 
-  // 检查登录状态
+  // 等待 Zustand persist hydration 完成
   useEffect(() => {
+    const timer = setTimeout(() => setIsHydrated(true), 300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 检查登录状态（hydration完成后）
+  useEffect(() => {
+    if (!isHydrated) return;
     if (!isAuthenticated) {
       router.push('/auth/login');
       return;
@@ -51,7 +59,7 @@ export default function CreatorDashboard() {
     };
     
     loadData();
-  }, [isAuthenticated, router, fetchAvatars, fetchTasks]);
+  }, [isAuthenticated, isHydrated, router, fetchAvatars, fetchTasks]);
 
   // 计算统计数据
   useEffect(() => {
@@ -123,8 +131,13 @@ export default function CreatorDashboard() {
     paid: { label: '已支付', color: 'bg-green-100 text-green-700', icon: CheckCircle },
   };
 
-  if (!isAuthenticated) {
-    return null; // 重定向中
+  if (!isHydrated || !isAuthenticated) {
+    return (
+      <div className="p-8 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-500">加载中...</p>
+      </div>
+    );
   }
 
   return (

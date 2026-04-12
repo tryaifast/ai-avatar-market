@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAdminAuthStore } from '@/lib/store';
+import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import Link from 'next/link';
 
 // 管理后台留言管理页面
@@ -25,7 +25,7 @@ export default function AdminFeedbacksPage() {
       const url = statusFilter === 'all' 
         ? '/api/admin/feedbacks' 
         : `/api/admin/feedbacks?status=${statusFilter}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       const data = await res.json();
       if (data.success) {
         setFeedbacks(data.feedbacks || []);
@@ -42,9 +42,8 @@ export default function AdminFeedbacksPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/admin/feedbacks', {
+      const res = await adminFetch('/api/admin/feedbacks', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           feedbackId: replyingTo.id,
           reply: replyContent.trim(),
@@ -72,7 +71,7 @@ export default function AdminFeedbacksPage() {
     if (!confirm('确定删除这条留言？')) return;
 
     try {
-      const res = await fetch(`/api/admin/feedbacks?id=${id}`, {
+      const res = await adminFetch(`/api/admin/feedbacks?id=${id}`, {
         method: 'DELETE',
       });
 

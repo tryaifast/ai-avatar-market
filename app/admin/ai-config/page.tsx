@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAdminAuthStore } from '@/lib/store';
+import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import { Plus, Trash2, Edit2, Check, X, Key, Server } from 'lucide-react';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
@@ -33,7 +33,7 @@ function AIConfigContent() {
   const fetchConfigs = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/ai-config');
+      const res = await adminFetch('/api/admin/ai-config');
       const data = await res.json();
       if (data.success) {
         setConfigs(data.configs || []);
@@ -49,9 +49,8 @@ function AIConfigContent() {
     e.preventDefault();
     
     try {
-      const res = await fetch('/api/admin/ai-config', {
+      const res = await adminFetch('/api/admin/ai-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingConfig?.id,
           provider: formData.provider,
@@ -83,7 +82,7 @@ function AIConfigContent() {
     if (!confirm('确定要删除这个配置吗？')) return;
     
     try {
-      const res = await fetch(`/api/admin/ai-config?id=${id}`, {
+      const res = await adminFetch(`/api/admin/ai-config?id=${id}`, {
         method: 'DELETE',
       });
 

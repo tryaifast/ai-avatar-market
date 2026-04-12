@@ -110,6 +110,7 @@ export const useAuthStore = create<AuthState>()(
 // ============================================
 interface AdminAuthState {
   admin: User | null;
+  token: string | null;
   isAdminAuthenticated: boolean;
   isLoading: boolean;
 
@@ -117,16 +118,53 @@ interface AdminAuthState {
   setAdmin: (admin: User | null) => void;
   adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
+  getAuthHeaders: () => Record<string, string>;
+}
+
+// 管理员API请求辅助函数 - 自动带token
+export async function adminFetch(url: string, options: RequestInit = {}) {
+  // 从 localStorage 读取 admin token
+  let token: string | null = null;
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('admin-auth-storage');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        token = parsed?.state?.token || null;
+      }
+    } catch {}
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return fetch(url, { ...options, headers });
 }
 
 export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       admin: null,
+      token: null,
       isAdminAuthenticated: false,
       isLoading: false,
 
       setAdmin: (admin) => set({ admin, isAdminAuthenticated: !!admin }),
+
+      getAuthHeaders: () => {
+        const { token } = get();
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+      },
 
       adminLogin: async (email, password) => {
         set({ isLoading: true });
@@ -150,7 +188,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
             return { success: false, error: '此账号不是管理员' };
           }
 
-          set({ admin: data.user, isAdminAuthenticated: true, isLoading: false });
+          set({ admin: data.user, token: data.token, isAdminAuthenticated: true, isLoading: false });
           return { success: true };
         } catch (error: any) {
           set({ isLoading: false });
@@ -159,7 +197,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       },
 
       adminLogout: () => {
-        set({ admin: null, isAdminAuthenticated: false });
+        set({ admin: null, token: null, isAdminAuthenticated: false });
       },
     }),
     {

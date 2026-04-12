@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAdminAuthStore } from '@/lib/store';
+import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
 // 用户管理页面内容 - 从API获取真实用户数据
@@ -30,7 +30,7 @@ function AdminUsersContent() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await adminFetch('/api/admin/users');
       const data = await res.json();
       if (data.success) {
         setUsers(data.users || []);
@@ -44,9 +44,8 @@ function AdminUsersContent() {
 
   const handleBan = async (userId: string, action: 'ban' | 'unban') => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
+      const res = await adminFetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: action === 'ban' ? 'banned' : 'active' }),
       });
       const data = await res.json();
@@ -99,12 +98,8 @@ function AdminUsersContent() {
     setPasswordSuccess('');
 
     try {
-      const res = await fetch('/api/admin/change-password', {
+      const res = await adminFetch('/api/admin/change-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
         body: JSON.stringify({
           userId: selectedUser.id,
           newPassword,

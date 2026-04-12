@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAdminAuthStore } from '@/lib/store';
+import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import Link from 'next/link';
 
 // 管理后台消息推送页面
@@ -27,7 +27,7 @@ export default function AdminMessagesPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await adminFetch('/api/admin/users');
       const data = await res.json();
       if (data.success) {
         setUsers(data.users || []);
@@ -39,7 +39,7 @@ export default function AdminMessagesPage() {
 
   const fetchBroadcasts = async () => {
     try {
-      const res = await fetch('/api/admin/messages');
+      const res = await adminFetch('/api/admin/messages');
       const data = await res.json();
       if (data.success) {
         setBroadcasts(data.broadcasts || []);
@@ -68,9 +68,8 @@ export default function AdminMessagesPage() {
     setIsSending(true);
 
     try {
-      const res = await fetch('/api/admin/messages', {
+      const res = await adminFetch('/api/admin/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
