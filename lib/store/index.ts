@@ -19,6 +19,7 @@ interface AuthState {
   _hasHydrated: boolean; // Zustand persist hydration 是否完成（关键：解决刷新后认证丢失）
   
   // Actions
+  setHasHydrated: (hydrated: boolean) => void;
   setUser: (user: User | null) => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, name: string, role?: string) => Promise<{ success: boolean; error?: string }>;
@@ -34,6 +35,9 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isAuthenticated: false,
       _hasHydrated: false, // 默认false，hydration完成后置true
+
+      // 关键：必须用action设置_hasHydrated，因为onRehydrateStorage回调中不能引用store自身（minification后循环引用）
+      setHasHydrated: (hydrated: boolean) => set({ _hasHydrated: hydrated }),
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
 
@@ -112,9 +116,10 @@ export const useAuthStore = create<AuthState>()(
           if (error) {
             console.error('[useAuthStore] Rehydration error:', error);
           }
-          // 关键修复：必须用 set() 设置 _hasHydrated，否则不会触发 React 重渲染
+          // 关键修复：用 state 上的 action 设置 _hasHydrated
+          // 不能用 useAuthStore.setState() — minification 后会产生循环引用 ReferenceError
           if (state) {
-            useAuthStore.setState({ _hasHydrated: true } as any);
+            state.setHasHydrated(true);
           }
         };
       },
@@ -133,6 +138,7 @@ interface AdminAuthState {
   _hasHydrated: boolean; // Zustand persist hydration 是否完成
 
   // Actions
+  setHasHydrated: (hydrated: boolean) => void;
   setAdmin: (admin: User | null) => void;
   adminLogin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   adminLogout: () => void;
@@ -173,6 +179,9 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       isAdminAuthenticated: false,
       isLoading: false,
       _hasHydrated: false,
+
+      // 关键：必须用action设置_hasHydrated，因为onRehydrateStorage回调中不能引用store自身（minification后循环引用）
+      setHasHydrated: (hydrated: boolean) => set({ _hasHydrated: hydrated }),
 
       setAdmin: (admin) => set({ admin, isAdminAuthenticated: !!admin }),
 
@@ -227,8 +236,10 @@ export const useAdminAuthStore = create<AdminAuthState>()(
           if (error) {
             console.error('[useAdminAuthStore] Rehydration error:', error);
           }
+          // 关键修复：用 state 上的 action 设置 _hasHydrated
+          // 不能用 useAdminAuthStore.setState() — minification 后会产生循环引用 ReferenceError
           if (state) {
-            useAdminAuthStore.setState({ _hasHydrated: true } as any);
+            state.setHasHydrated(true);
           }
         };
       },
