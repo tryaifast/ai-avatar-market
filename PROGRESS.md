@@ -1,6 +1,6 @@
 # AI Avatar Market - 项目进度报告
 
-> 最近更新: 2026-04-12
+> 最近更新: 2026-04-13
 > 应用方法论: Superpowers + DeerFlow
 
 ---
@@ -506,15 +506,59 @@ ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS portfolio_url TEXT;
 | 通知系统 | ✅ 已上线 | 基础通知 |
 | 消息系统 | ✅ 已上线 | 群发+收件箱+已读(Phase 11) |
 | 反馈系统 | ✅ 已上线 | 提交+回复+历史(Phase 11) |
-| 会员系统 | ✅ 已上线 | 年费9.9/终身99+购买流程(Phase 18,暂模拟支付) |
+| 会员系统 | ✅ 已上线 | 年费9.9/终身99+支付宝网页支付(Phase 19) |
 | 账户设置 | ✅ 已上线 | 修改昵称/电话/简介/身份(Phase 18) |
 
 ### ⏳ 待完成
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 微信支付 | P1 | 真实支付集成（替换会员购买模拟） |
 | 文件上传 | P1 | 头像/记忆文件/简历上传（限制500KB/人） |
 | 人机协同完整流程 | P2 | AI任务处理+真人审核 |
+
+### Phase 19 (04-13): 支付宝支付接入+审核详情完善
+
+**需求**：
+1. 会员购买直接开通，没有真实支付流程→接入支付宝网页支付
+2. 管理后台审核详情看不到用户完整申请信息→修复数据传递+展示
+
+**修改**：
+
+Bug1: 会员购买无支付流程
+- **现象**: 点击"立即开通"直接升级会员，`POST /api/membership/order` 里 `status: 'paid'` + `payment_method: 'simulated'`
+- **修复**:
+  - 纯Node.js实现RSA2签名（用crypto模块），不依赖alipay-sdk（避免webpack ESM兼容问题）
+  - 新建 `lib/alipay.ts`：RSA2签名/验签 + 构建支付URL + 订单号生成
+  - 改造 `POST /api/membership/order`：创建待支付订单(pending) + 返回支付宝支付链接
+  - 新建 `POST /api/membership/notify`：支付宝异步通知回调验签+升级会员
+  - 新建 `GET /api/membership/pay-result`：前端轮询支付结果
+  - 会员中心页面改造：点击购买→创建订单→跳转支付宝→回调确认→轮询结果→升级
+  - SQL: `membership_orders`表(trade_no/amount/status/paid_at等)
+
+Bug2: 审核详情看不到完整申请信息
+- **现象**: 数据库可能缺少experiences/company列，导致审核详情只显示基础信息
+- **修复**:
+  - 入驻申请提交新增company字段传递
+  - 审核列表表格新增"公司"列
+  - 审核详情弹窗新增"所在公司"显示
+  - UserDB.update新增onboardingStatus映射
+  - SQL: 添加company列+确保experiences/resume_url/portfolio_url列存在
+
+**支付流程**:
+1. 用户点击购买 → 前端调POST /api/membership/order
+2. 后端创建pending订单 + 生成支付宝支付链接 → 返回payUrl
+3. 前端跳转到支付宝支付页面
+4. 用户完成支付 → 支付宝回调POST /api/membership/notify
+5. 后端验签 + 更新订单paid + 升级用户会员状态
+6. 前端return_url跳回 + 轮询GET /api/membership/pay-result确认
+
+**环境变量(需配置)**:
+- `ALIPAY_APP_ID` - 支付宝应用ID
+- `ALIPAY_PRIVATE_KEY` - 应用RSA2私钥
+- `ALIPAY_PUBLIC_KEY` - 支付宝RSA2公钥
+- `ALIPAY_SANDBOX` - 设为'true'使用沙箱环境（可选）
+- `NEXT_PUBLIC_SITE_URL` - 站点URL（用于回调地址，默认ai-avatar-market.vercel.app）
+
+**SQL需执行**: `supabase/migrations/phase19_alipay_and_application.sql`
 
 ---
 
