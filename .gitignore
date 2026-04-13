@@ -41,3 +41,7 @@ next-env.d.ts
 # Data
 data/
 *.log
+
+# Temp scripts (may contain secrets)
+*.ps1
+build_output.txt

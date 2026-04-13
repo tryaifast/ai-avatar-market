@@ -5,11 +5,24 @@ import Link from 'next/link';
 import { useAdminAuthStore, adminFetch } from '@/lib/store';
 import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
 
+const MEMBERSHIP_LABELS: Record<string, string> = {
+  free: '免费用户',
+  yearly: '年费会员',
+  lifetime: '终身会员',
+};
+
+const MEMBERSHIP_COLORS: Record<string, string> = {
+  free: 'bg-gray-100 text-gray-600',
+  yearly: 'bg-blue-100 text-blue-700',
+  lifetime: 'bg-purple-100 text-purple-700',
+};
+
 // 用户管理页面内容
 function AdminUsersContent() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'creator' | 'client' | 'admin'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'banned'>('all');
+  const [membershipFilter, setMembershipFilter] = useState<'all' | 'free' | 'yearly' | 'lifetime'>('all');
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const currentUser = useAdminAuthStore((s) => s.admin);
@@ -27,6 +40,12 @@ function AdminUsersContent() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [detailUser, setDetailUser] = useState<any>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+
+  // 会员操作弹窗
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [membershipTarget, setMembershipTarget] = useState<any>(null);
+  const [selectedMembership, setSelectedMembership] = useState<string>('yearly');
+  const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
   // 封禁/解封操作反馈
   const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -69,8 +88,7 @@ function AdminUsersContent() {
       if (data.success) {
         showActionMsg('success', `${actionText}成功！`);
         fetchUsers();
-        // 如果详情弹窗打开，也刷新详情
-        if (showDetailModal && detailUser?.id === userId) {
+        if (showDetailModal && detailUser?.user?.id === userId) {
           fetchUserDetail(userId);
         }
       } else {
@@ -78,6 +96,38 @@ function AdminUsersContent() {
       }
     } catch (error) {
       showActionMsg('error', `${actionText}操作网络错误`);
+    }
+  };
+
+  const handleMembershipAction = async () => {
+    if (!membershipTarget || !selectedMembership) return;
+
+    setIsUpdatingMembership(true);
+    try {
+      const res = await adminFetch(`/api/admin/users/${membershipTarget.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          action: 'grantMembership',
+          membershipType: selectedMembership,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const actionText = selectedMembership === 'free' ? '取消会员' : '授予会员';
+        showActionMsg('success', `${actionText}成功！`);
+        setShowMembershipModal(false);
+        setMembershipTarget(null);
+        fetchUsers();
+        if (showDetailModal && detailUser?.user?.id === membershipTarget.id) {
+          fetchUserDetail(membershipTarget.id);
+        }
+      } else {
+        showActionMsg('error', data.error || '操作失败');
+      }
+    } catch (error) {
+      showActionMsg('error', '操作网络错误');
+    } finally {
+      setIsUpdatingMembership(false);
     }
   };
 
@@ -124,6 +174,12 @@ function AdminUsersContent() {
     setCurrentPassword('');
     setPasswordError('');
     setPasswordSuccess('');
+  };
+
+  const openMembershipModal = (user: any) => {
+    setMembershipTarget(user);
+    setSelectedMembership((user.membershipType || 'free') === 'free' ? 'yearly' : 'free');
+    setShowMembershipModal(true);
   };
 
   const handleChangePassword = async () => {
@@ -174,7 +230,9 @@ function AdminUsersContent() {
       statusFilter === 'all' ||
       (statusFilter === 'active' && !isBanned(u)) ||
       (statusFilter === 'banned' && isBanned(u));
-    return matchesSearch && matchesRole && matchesStatus;
+    const matchesMembership =
+      membershipFilter === 'all' || (u.membershipType || 'free') === membershipFilter;
+    return matchesSearch && matchesRole && matchesStatus && matchesMembership;
   });
 
   return (
@@ -228,6 +286,16 @@ function AdminUsersContent() {
             <option value="active">正常</option>
             <option value="banned">已封禁</option>
           </select>
+          <select
+            value={membershipFilter}
+            onChange={(e) => setMembershipFilter(e.target.value as any)}
+            className="input w-auto"
+          >
+            <option value="all">全部会员</option>
+            <option value="free">免费用户</option>
+            <option value="yearly">年费会员</option>
+            <option value="lifetime">终身会员</option>
+          </select>
           <span className="text-sm text-gray-500">共 {filteredUsers.length} 个用户</span>
         </div>
 
@@ -245,6 +313,7 @@ function AdminUsersContent() {
                   <tr>
                     <th>用户</th>
                     <th>类型</th>
+                    <th>会员</th>
                     <th>状态</th>
                     <th>加入日期</th>
                     <th>操作</th>
@@ -270,6 +339,11 @@ function AdminUsersContent() {
                         </span>
                       </td>
                       <td>
+                        <span className={`px-2 py-1 rounded-full text-xs ${MEMBERSHIP_COLORS[user.membershipType || 'free']}`}>
+                          {MEMBERSHIP_LABELS[user.membershipType || 'free']}
+                        </span>
+                      </td>
+                      <td>
                         <span className={`px-2 py-1 rounded-full text-xs ${
                           isBanned(user) ? 'bg-red-100 text-red-700' :
                           user.onboardingStatus === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
@@ -288,6 +362,12 @@ function AdminUsersContent() {
                             className="text-blue-600 hover:underline text-sm"
                           >
                             查看
+                          </button>
+                          <button
+                            onClick={() => openMembershipModal(user)}
+                            className="text-purple-600 hover:underline text-sm"
+                          >
+                            会员
                           </button>
                           <button
                             onClick={() => openPasswordModal(user)}
@@ -379,6 +459,51 @@ function AdminUsersContent() {
                   )}
                 </div>
 
+                {/* 会员信息 */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-500 mb-3">会员信息</h3>
+                  <div className="p-3 bg-gray-50 rounded">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-500">当前会员：</span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${MEMBERSHIP_COLORS[detailUser.user?.membershipType || 'free']}`}>
+                        {MEMBERSHIP_LABELS[detailUser.user?.membershipType || 'free']}
+                      </span>
+                    </div>
+                    {detailUser.user?.membershipExpiresAt && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">到期时间：</span>
+                        <span className="text-sm font-medium">{new Date(detailUser.user.membershipExpiresAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* 会员订单记录 */}
+                  {detailUser.membershipOrders?.length > 0 && (
+                    <div className="mt-3">
+                      <span className="text-sm text-gray-500 block mb-2">支付记录：</span>
+                      <div className="space-y-2">
+                        {detailUser.membershipOrders.map((order: any) => (
+                          <div key={order.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-700">{order.type === 'yearly' ? '年费' : '终身'}</span>
+                              <span className="text-gray-500">¥{(order.amount / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                order.status === 'paid' ? 'bg-green-100 text-green-700' :
+                                order.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {order.status === 'paid' ? '已支付' : order.status === 'pending' ? '待支付' : order.status}
+                              </span>
+                              <span className="text-gray-400 text-xs">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* 分身列表 */}
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-gray-500 mb-3">分身（{detailUser.avatars?.length || 0}个）</h3>
@@ -445,6 +570,12 @@ function AdminUsersContent() {
 
                 {/* 操作按钮 */}
                 <div className="flex justify-end gap-3 pt-4 border-t">
+                  <button
+                    onClick={() => { openMembershipModal(detailUser.user); closeDetailModal(); }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                  >
+                    会员管理
+                  </button>
                   {detailUser.user?.id !== currentUser?.id && !isBanned(detailUser.user) && (
                     <button
                       onClick={() => { handleBan(detailUser.user.id, 'ban'); closeDetailModal(); }}
@@ -469,6 +600,106 @@ function AdminUsersContent() {
             ) : (
               <p className="text-center text-gray-500 py-8">无法加载用户详情</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 会员管理弹窗 */}
+      {showMembershipModal && membershipTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]" onClick={() => setShowMembershipModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">会员管理 - {membershipTarget.name}</h3>
+              <button onClick={() => setShowMembershipModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded mb-4">
+                <span className="text-sm text-gray-500">当前会员：</span>
+                <span className={`px-2 py-0.5 rounded text-xs ${MEMBERSHIP_COLORS[membershipTarget.membershipType || 'free']}`}>
+                  {MEMBERSHIP_LABELS[membershipTarget.membershipType || 'free']}
+                </span>
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 mb-2">选择操作</label>
+              <div className="space-y-2">
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedMembership === 'yearly' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="membership"
+                    value="yearly"
+                    checked={selectedMembership === 'yearly'}
+                    onChange={(e) => setSelectedMembership(e.target.value)}
+                    className="text-blue-600"
+                  />
+                  <div>
+                    <span className="font-medium text-sm">授予年费会员</span>
+                    <p className="text-xs text-gray-500">9.9元/年，10个分身，有效期1年</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedMembership === 'lifetime' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="membership"
+                    value="lifetime"
+                    checked={selectedMembership === 'lifetime'}
+                    onChange={(e) => setSelectedMembership(e.target.value)}
+                    className="text-purple-600"
+                  />
+                  <div>
+                    <span className="font-medium text-sm">授予终身会员</span>
+                    <p className="text-xs text-gray-500">99元/永久，10个分身，永不过期</p>
+                  </div>
+                </label>
+
+                <label className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedMembership === 'free' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="membership"
+                    value="free"
+                    checked={selectedMembership === 'free'}
+                    onChange={(e) => setSelectedMembership(e.target.value)}
+                    className="text-red-600"
+                  />
+                  <div>
+                    <span className="font-medium text-sm text-red-600">取消会员</span>
+                    <p className="text-xs text-gray-500">降级为免费用户，1个分身</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {selectedMembership === 'free' && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-700">⚠️ 取消会员后，用户将降级为免费用户，超过1个的分身不会被删除但无法创建新分身。此操作不可自动撤销。</p>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowMembershipModal(false)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                disabled={isUpdatingMembership}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleMembershipAction}
+                disabled={isUpdatingMembership}
+                className={`px-4 py-2 text-white rounded disabled:opacity-50 ${
+                  selectedMembership === 'free' ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-600 hover:bg-purple-700'
+                }`}
+              >
+                {isUpdatingMembership ? '处理中...' : selectedMembership === 'free' ? '确认取消会员' : '确认授予'}
+              </button>
+            </div>
           </div>
         </div>
       )}

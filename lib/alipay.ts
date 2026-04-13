@@ -3,8 +3,6 @@
 // 使用 crypto 模块做 RSA2 签名，手动构建支付请求
 // ============================================
 
-import crypto from 'crypto';
-
 // ========== 配置 ==========
 
 function getConfig() {
@@ -55,8 +53,10 @@ export function generateOrderId(): string {
 // ========== RSA2 签名 ==========
 
 function sign(content: string, privateKey: string): string {
-  const sign = crypto.createSign('RSA-SHA256');
-  sign.update(content, 'utf8');
+  // 动态引入crypto，确保Node.js运行时兼容
+  const crypto = require('crypto');
+  const signObj = crypto.createSign('RSA-SHA256');
+  signObj.update(content, 'utf8');
   
   // 格式化私钥
   let formattedKey = privateKey;
@@ -64,22 +64,28 @@ function sign(content: string, privateKey: string): string {
     formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
   }
   
-  return sign.sign(formattedKey, 'base64');
+  return signObj.sign(formattedKey, 'base64');
 }
 
 // ========== RSA2 验签 ==========
 
 function verify(content: string, signStr: string, publicKey: string): boolean {
-  const verify = crypto.createVerify('RSA-SHA256');
-  verify.update(content, 'utf8');
-  
-  // 格式化公钥
-  let formattedKey = publicKey;
-  if (!formattedKey.includes('-----')) {
-    formattedKey = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
+  try {
+    const crypto = require('crypto');
+    const verifyObj = crypto.createVerify('RSA-SHA256');
+    verifyObj.update(content, 'utf8');
+    
+    // 格式化公钥
+    let formattedKey = publicKey;
+    if (!formattedKey.includes('-----')) {
+      formattedKey = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
+    }
+    
+    return verifyObj.verify(formattedKey, signStr, 'base64');
+  } catch (err) {
+    console.error('Verify sign error:', err);
+    return false;
   }
-  
-  return verify.verify(formattedKey, signStr, 'base64');
 }
 
 // ========== 构建待签名字符串 ==========
@@ -108,37 +114,42 @@ export async function createPagePayUrl(params: {
     return null;
   }
 
-  // 构建请求参数
-  const bizContent = JSON.stringify({
-    out_trade_no: params.orderId,
-    total_amount: params.amount,
-    subject: params.subject,
-    product_code: 'FAST_INSTANT_TRADE_PAY',
-  });
+  try {
+    // 构建请求参数
+    const bizContent = JSON.stringify({
+      out_trade_no: params.orderId,
+      total_amount: params.amount,
+      subject: params.subject,
+      product_code: 'FAST_INSTANT_TRADE_PAY',
+    });
 
-  const systemParams: Record<string, string> = {
-    app_id: config.appId!,
-    method: 'alipay.trade.page.pay',
-    charset: config.charset,
-    sign_type: config.signType,
-    timestamp: formatDate(new Date()),
-    version: '1.0',
-    notify_url: params.notifyUrl,
-    return_url: params.returnUrl,
-    biz_content: bizContent,
-  };
+    const systemParams: Record<string, string> = {
+      app_id: config.appId!,
+      method: 'alipay.trade.page.pay',
+      charset: config.charset,
+      sign_type: config.signType,
+      timestamp: formatDate(new Date()),
+      version: '1.0',
+      notify_url: params.notifyUrl,
+      return_url: params.returnUrl,
+      biz_content: bizContent,
+    };
 
-  // 签名
-  const signContent = buildSignContent(systemParams);
-  const signStr = sign(signContent, config.privateKey!);
-  systemParams.sign = signStr;
+    // 签名
+    const signContent = buildSignContent(systemParams);
+    const signStr = sign(signContent, config.privateKey!);
+    systemParams.sign = signStr;
 
-  // 构建URL
-  const qs = Object.keys(systemParams)
-    .map(key => `${key}=${encodeURIComponent(systemParams[key])}`)
-    .join('&');
+    // 构建URL
+    const qs = Object.keys(systemParams)
+      .map(key => `${key}=${encodeURIComponent(systemParams[key])}`)
+      .join('&');
 
-  return `${config.gateway}?${qs}`;
+    return `${config.gateway}?${qs}`;
+  } catch (error) {
+    console.error('Create pay URL error:', error);
+    return null;
+  }
 }
 
 // ========== 验证异步通知签名 ==========

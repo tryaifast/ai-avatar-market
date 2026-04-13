@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
 import { verifyAuth } from '@/lib/auth';
 
-// PUT /api/admin/users/[id] - 封禁/解封用户
+// PUT /api/admin/users/[id] - 封禁/解封/修改会员
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -23,57 +23,96 @@ export async function PUT(
 
     const userId = params.id;
     const body = await req.json();
-    const { status } = body;
+    const { status, action, membershipType } = body;
 
-    // 验证 status 值
-    if (!['banned', 'active'].includes(status)) {
-      return NextResponse.json({ error: '无效的状态值，只支持 banned/active' }, { status: 400 });
+    // 操作1: 封禁/解封用户
+    if (status && ['banned', 'active'].includes(status)) {
+      // 不能封禁自己
+      if (userId === currentUser.userId) {
+        return NextResponse.json({ error: '不能封禁自己' }, { status: 400 });
+      }
+
+      // 更新用户状态
+      const { data, error } = await (DB.db.from('users') as any)
+        .update({ onboarding_status: status })
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (!data) {
+        return NextResponse.json({ error: '用户不存在' }, { status: 404 });
+      }
+
+      // 如果封禁，同时下架该用户的所有分身
+      if (status === 'banned') {
+        await (DB.db.from('avatars') as any)
+          .update({ status: 'banned' })
+          .eq('creator_id', userId)
+          .neq('status', 'banned');
+      }
+
+      // 如果解封，恢复该用户之前被下架的分身为 paused 状态
+      if (status === 'active') {
+        await (DB.db.from('avatars') as any)
+          .update({ status: 'paused' })
+          .eq('creator_id', userId)
+          .eq('status', 'banned');
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          onboardingStatus: data.onboarding_status,
+          createdAt: data.created_at,
+        },
+      });
     }
 
-    // 不能封禁自己
-    if (userId === currentUser.userId) {
-      return NextResponse.json({ error: '不能封禁自己' }, { status: 400 });
+    // 操作2: 授予/取消会员
+    if (action === 'grantMembership' && membershipType) {
+      if (!['yearly', 'lifetime', 'free'].includes(membershipType)) {
+        return NextResponse.json({ error: '无效的会员类型' }, { status: 400 });
+      }
+
+      const updates: any = {
+        membershipType: membershipType,
+      };
+
+      if (membershipType === 'yearly') {
+        const expiresAt = new Date();
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        updates.membershipExpiresAt = expiresAt.toISOString();
+      } else if (membershipType === 'lifetime') {
+        updates.membershipExpiresAt = null; // 终身不过期
+      } else if (membershipType === 'free') {
+        // 取消会员
+        updates.membershipType = 'free';
+        updates.membershipExpiresAt = null;
+      }
+
+      const updatedUser = await DB.User.update(userId, updates);
+      if (!updatedUser) {
+        return NextResponse.json({ error: '更新会员失败' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: (updatedUser as any).id,
+          name: (updatedUser as any).name,
+          email: (updatedUser as any).email,
+          membershipType: (updatedUser as any).membershipType || 'free',
+          membershipExpiresAt: (updatedUser as any).membershipExpiresAt,
+        },
+      });
     }
 
-    // 更新用户状态
-    const { data, error } = await (DB.db.from('users') as any)
-      .update({ onboarding_status: status })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    if (!data) {
-      return NextResponse.json({ error: '用户不存在' }, { status: 404 });
-    }
-
-    // 如果封禁，同时下架该用户的所有分身
-    if (status === 'banned') {
-      await (DB.db.from('avatars') as any)
-        .update({ status: 'banned' })
-        .eq('creator_id', userId)
-        .neq('status', 'banned');
-    }
-
-    // 如果解封，恢复该用户之前被下架的分身为 paused 状态
-    if (status === 'active') {
-      await (DB.db.from('avatars') as any)
-        .update({ status: 'paused' })
-        .eq('creator_id', userId)
-        .eq('status', 'banned');
-    }
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: data.id,
-        email: data.email,
-        name: data.name,
-        role: data.role,
-        onboardingStatus: data.onboarding_status,
-        createdAt: data.created_at,
-      },
-    });
+    return NextResponse.json({ error: '无效的操作' }, { status: 400 });
   } catch (error: any) {
     console.error('Update user error:', error);
     return NextResponse.json(
@@ -126,6 +165,12 @@ export async function GET(
       .select('*')
       .eq('user_id', userId);
 
+    // 获取用户的会员订单
+    const { data: membershipOrders } = await (DB.db.from('membership_orders') as any)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     return NextResponse.json({
       success: true,
       user: {
@@ -137,6 +182,8 @@ export async function GET(
         bio: userData.bio,
         identity: userData.identity || [],
         onboardingStatus: userData.onboarding_status,
+        membershipType: userData.membership_type || 'free',
+        membershipExpiresAt: userData.membership_expires_at,
         walletBalance: userData.wallet_balance || 0,
         creditScore: userData.credit_score || 80,
         createdAt: userData.created_at,
@@ -157,6 +204,16 @@ export async function GET(
         status: app.status,
         profession: app.profession,
         createdAt: app.created_at,
+      })),
+      membershipOrders: (membershipOrders || []).map((order: any) => ({
+        id: order.id,
+        type: order.type,
+        amount: order.amount,
+        status: order.status,
+        paymentMethod: order.payment_method,
+        tradeNo: order.trade_no,
+        paidAt: order.paid_at,
+        createdAt: order.created_at,
       })),
     });
   } catch (error: any) {

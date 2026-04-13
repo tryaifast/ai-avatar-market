@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
       updates.membershipExpiresAt = expiresAt.toISOString();
     } else if (order.type === 'lifetime') {
-      updates.membershipExpiresAt = null; // 终身不过期，用null清除
+      updates.membershipExpiresAt = null; // 终身不过期
     }
 
     const updatedUser = await DB.User.update(order.user_id, updates);

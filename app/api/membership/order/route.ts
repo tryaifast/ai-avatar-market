@@ -17,7 +17,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '请先登录' }, { status: 401 });
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: '请求格式错误' }, { status: 400 });
+    }
     const { type } = body;
 
     if (!type || !['yearly', 'lifetime'].includes(type)) {
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
         user_id: auth.userId,
         type,
         amount,
-        status: 'pending', // 待支付
+        status: 'pending',
         payment_method: 'alipay',
         created_at: new Date().toISOString(),
       })
@@ -61,20 +66,26 @@ export async function POST(req: NextRequest) {
 
     if (orderError) {
       console.error('Create order error:', orderError);
-      return NextResponse.json({ error: '创建订单失败' }, { status: 500 });
+      return NextResponse.json({ error: '创建订单失败: ' + (orderError.message || '未知错误') }, { status: 500 });
     }
 
     // 获取站点域名用于回调
     const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-avatar-market.vercel.app';
 
     // 获取支付宝支付链接
-    const payUrl = await createPagePayUrl({
-      orderId,
-      amount: amountYuan,
-      subject: MEMBERSHIP_NAMES[type],
-      notifyUrl: `${host}/api/membership/notify`,
-      returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
-    });
+    let payUrl: string | null = null;
+    try {
+      payUrl = await createPagePayUrl({
+        orderId,
+        amount: amountYuan,
+        subject: MEMBERSHIP_NAMES[type],
+        notifyUrl: `${host}/api/membership/notify`,
+        returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
+      });
+    } catch (error) {
+      console.error('Create pay URL error:', error);
+      // 支付宝签名失败，仍然返回订单信息
+    }
 
     if (!payUrl) {
       // 支付宝未配置或调用失败，返回订单信息
@@ -125,6 +136,7 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Get orders error:', error);
       return NextResponse.json({ error: '查询订单失败' }, { status: 500 });
     }
 
