@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       phone: data.phone || '',
       email: data.email || currentUser.email || '',
       profession: data.profession || '',
+      company: data.company || '',
       experience_years: data.experienceYears || null,
       bio: data.bio || '',
       skills: data.skills || [],

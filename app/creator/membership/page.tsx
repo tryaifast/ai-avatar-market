@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { 
   Crown, Check, X, ChevronLeft, Sparkles, Shield, 
-  Loader2, CheckCircle, ArrowRight, Star
+  Loader2, CheckCircle, ArrowRight, Star, ExternalLink, Clock
 } from 'lucide-react';
 import { useAuthStore, authFetch } from '@/lib/store';
 import { MEMBERSHIP_LABELS, AVATAR_LIMITS, MEMBERSHIP_PRICES, MEMBERSHIP_FEATURES } from '@/lib/constants';
@@ -12,10 +13,56 @@ import { MEMBERSHIP_LABELS, AVATAR_LIMITS, MEMBERSHIP_PRICES, MEMBERSHIP_FEATURE
 export default function MembershipPage() {
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const searchParams = useSearchParams();
   const [purchasing, setPurchasing] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const [pendingOrder, setPendingOrder] = useState<{ id: string; type: string; amountYuan: string } | null>(null);
+  const [polling, setPolling] = useState(false);
 
   const membershipType = (user as any)?.membershipType || 'free';
+
+  // 处理支付宝支付结果回调
+  useEffect(() => {
+    const payResult = searchParams.get('payResult');
+    const orderId = searchParams.get('orderId');
+    
+    if (payResult === 'success' && orderId) {
+      setMessage({ type: 'info', text: '正在确认支付结果...' });
+      setPolling(true);
+      setPendingOrder({ id: orderId, type: '', amountYuan: '' });
+      pollPayResult(orderId);
+    }
+  }, [searchParams]);
+
+  // 轮询支付结果
+  const pollPayResult = useCallback(async (orderId: string, maxRetries = 10) => {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const res = await authFetch(`/api/membership/pay-result?orderId=${orderId}`);
+        const data = await res.json();
+        
+        if (data.success && data.order?.status === 'paid') {
+          // 支付成功，更新本地用户状态
+          if (data.user) {
+            const updatedUser = { ...user, ...data.user } as any;
+            setUser(updatedUser);
+          }
+          setMessage({ type: 'success', text: '会员开通成功！感谢您的支持' });
+          setPendingOrder(null);
+          setPolling(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Poll pay result error:', err);
+      }
+      
+      // 等待2秒后重试
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    setMessage({ type: 'error', text: '支付结果确认超时，如已支付请稍后刷新页面查看' });
+    setPolling(false);
+  }, [user, setUser]);
 
   const handlePurchase = async (type: 'yearly' | 'lifetime') => {
     if (!user) return;
@@ -29,21 +76,30 @@ export default function MembershipPage() {
       });
       const data = await res.json();
 
-      if (data.success) {
-        // 更新本地用户状态
-        const updatedUser = { ...user, membershipType: type } as any;
-        if (type === 'yearly') {
-          const expiresAt = new Date();
-          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-          updatedUser.membershipExpiresAt = expiresAt.toISOString();
-        }
-        setUser(updatedUser);
-        setMessage({ type: 'success', text: '会员开通成功！' });
+      if (data.success && data.payUrl) {
+        // 有支付链接，跳转到支付宝
+        setPendingOrder({
+          id: data.order.id,
+          type: data.order.type,
+          amountYuan: data.order.amountYuan,
+        });
+        
+        // 跳转到支付宝支付页面
+        window.location.href = data.payUrl;
+        return;
+      }
+
+      if (data.success && !data.payUrl) {
+        // 支付宝未配置
+        setMessage({ 
+          type: 'error', 
+          text: data.message || '支付功能暂未开通，请联系客服' 
+        });
       } else {
-        setMessage({ type: 'error', text: data.error || '开通失败' });
+        setMessage({ type: 'error', text: data.error || '创建订单失败' });
       }
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || '开通失败' });
+      setMessage({ type: 'error', text: err.message || '创建订单失败' });
     } finally {
       setPurchasing(null);
     }
@@ -62,10 +118,25 @@ export default function MembershipPage() {
       {/* 提示消息 */}
       {message && (
         <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm ${
-          message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+          message.type === 'success' ? 'bg-green-50 text-green-700' :
+          message.type === 'info' ? 'bg-blue-50 text-blue-700' :
+          'bg-red-50 text-red-700'
         }`}>
-          {message.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <X className="w-4 h-4" />}
-          {message.text}
+          {message.type === 'success' ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : 
+           message.type === 'info' ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" /> :
+           <X className="w-4 h-4 flex-shrink-0" />}
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* 支付中提示 */}
+      {polling && (
+        <div className="mb-4 p-4 rounded-lg bg-yellow-50 border border-yellow-200 flex items-center gap-3">
+          <Loader2 className="w-5 h-5 animate-spin text-yellow-600" />
+          <div>
+            <p className="text-sm font-medium text-yellow-800">正在确认支付结果...</p>
+            <p className="text-xs text-yellow-600">请稍候，系统正在验证您的支付信息</p>
+          </div>
         </div>
       )}
 
@@ -85,6 +156,12 @@ export default function MembershipPage() {
               <p className="text-blue-100">
                 可创建 {AVATAR_LIMITS[membershipType]} 个AI分身
               </p>
+              {(user as any)?.membershipExpiresAt && membershipType === 'yearly' && (
+                <p className="text-blue-200 text-xs mt-1">
+                  <Clock className="w-3 h-3 inline mr-1" />
+                  到期时间：{new Date((user as any).membershipExpiresAt).toLocaleDateString()}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -133,11 +210,11 @@ export default function MembershipPage() {
           {membershipType === 'free' ? (
             <button
               onClick={() => handlePurchase('yearly')}
-              disabled={purchasing !== null}
+              disabled={purchasing !== null || polling}
               className="w-full btn-primary flex items-center justify-center gap-2"
             >
               {purchasing === 'yearly' ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> 开通中...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> 创建订单中...</>
               ) : (
                 <><Sparkles className="w-4 h-4" /> 立即开通</>
               )}
@@ -195,11 +272,11 @@ export default function MembershipPage() {
           {membershipType === 'free' || membershipType === 'yearly' ? (
             <button
               onClick={() => handlePurchase('lifetime')}
-              disabled={purchasing !== null}
+              disabled={purchasing !== null || polling}
               className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {purchasing === 'lifetime' ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> 开通中...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> 创建订单中...</>
               ) : (
                 <><Crown className="w-4 h-4" /> 升级终身会员</>
               )}
@@ -250,6 +327,10 @@ export default function MembershipPage() {
           <div>
             <h4 className="font-medium text-gray-900 text-sm">从年费升级到终身，费用如何计算？</h4>
             <p className="text-sm text-gray-500 mt-1">升级终身会员需支付全额费用，当前年费会员剩余时间不折算。</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900 text-sm">支付方式是什么？</h4>
+            <p className="text-sm text-gray-500 mt-1">目前支持支付宝支付，点击开通后将跳转到支付宝完成付款。</p>
           </div>
         </div>
       </div>

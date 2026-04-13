@@ -245,6 +245,7 @@ function AdminReviewsContent() {
                     <tr>
                       <th>申请人</th>
                       <th>职业</th>
+                      <th>公司</th>
                       <th>状态</th>
                       <th>提交日期</th>
                       <th>操作</th>
@@ -255,6 +256,7 @@ function AdminReviewsContent() {
                       <tr key={app.id}>
                         <td className="font-medium">{app.real_name || app.userName || app.name || '-'}</td>
                         <td>{app.profession || '-'}</td>
+                        <td>{app.company || '-'}</td>
                         <td>
                           <span className={`px-2 py-1 rounded-full text-xs ${statusColors[app.status] || 'bg-gray-100 text-gray-700'}`}>
                             {statusLabels[app.status] || app.status}
@@ -392,6 +394,7 @@ function AdminReviewsContent() {
                 <div className="grid grid-cols-2 gap-3 text-sm mb-6">
                   <div><span className="text-gray-500">真实姓名：</span><span className="font-medium">{detailItem.real_name || '-'}</span></div>
                   <div><span className="text-gray-500">职业：</span><span className="font-medium">{detailItem.profession || '-'}</span></div>
+                  <div><span className="text-gray-500">所在公司：</span><span className="font-medium">{detailItem.company || '-'}</span></div>
                   <div><span className="text-gray-500">邮箱：</span><span className="font-medium">{detailItem.email || '-'}</span></div>
                   <div><span className="text-gray-500">电话：</span><span className="font-medium">{detailItem.phone || '-'}</span></div>
                   <div><span className="text-gray-500">从业年限：</span><span className="font-medium">{detailItem.experience_years || '-'}年</span></div>

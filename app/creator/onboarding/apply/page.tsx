@@ -107,6 +107,7 @@ export default function OnboardingApplyPage() {
           phone: formData.phone,
           email: user?.email || '',
           profession: formData.profession,
+          company: formData.company,
           experienceYears: formData.experience ? parseInt(formData.experience) : undefined,
           bio: formData.bio,
           skills: formData.skills,

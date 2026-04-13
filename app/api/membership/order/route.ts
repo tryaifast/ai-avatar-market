@@ -1,18 +1,14 @@
 // ============================================
-// 会员购买 API
-// POST /api/membership/order - 创建会员订单并升级（暂模拟支付）
+// 会员购买 API（支付宝支付版）
+// POST /api/membership/order - 创建会员订单，返回支付宝支付链接
 // GET /api/membership/order - 查询我的订单
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
 import { verifyAuth } from '@/lib/auth';
-
-// 会员价格配置（单位：分）
-const MEMBERSHIP_PRICES: Record<string, number> = {
-  yearly: 990,    // 9.9元/年
-  lifetime: 9900, // 99元终身
-};
+import { createPagePayUrl, MEMBERSHIP_AMOUNT, MEMBERSHIP_NAMES, generateOrderId } from '@/lib/alipay';
+import { MEMBERSHIP_PRICES } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     const currentType = (user as any).membershipType || 'free';
-    
+
     // 已经是终身会员不能再升级
     if (currentType === 'lifetime') {
       return NextResponse.json({ error: '您已经是终身会员，无需升级' }, { status: 400 });
@@ -45,53 +41,72 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '您已经是年费会员' }, { status: 400 });
     }
 
-    const amount = MEMBERSHIP_PRICES[type];
+    const amount = MEMBERSHIP_PRICES[type as keyof typeof MEMBERSHIP_PRICES]; // 单位：分
+    const amountYuan = MEMBERSHIP_AMOUNT[type]; // 单位：元
+    const orderId = generateOrderId();
 
-    // 创建订单记录
+    // 创建待支付订单
     const { data: order, error: orderError } = await (DB.db.from('membership_orders') as any)
       .insert({
+        id: orderId,
         user_id: auth.userId,
         type,
         amount,
-        status: 'paid', // 模拟支付直接成功
-        payment_method: 'simulated', // 模拟支付
-        paid_at: new Date().toISOString(),
+        status: 'pending', // 待支付
+        payment_method: 'alipay',
+        created_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (orderError) {
       console.error('Create order error:', orderError);
-      // 如果membership_orders表不存在，仍然继续升级会员
+      return NextResponse.json({ error: '创建订单失败' }, { status: 500 });
     }
 
-    // 更新用户会员状态
-    const updates: any = {
-      membershipType: type,
-    };
-    if (type === 'yearly') {
-      const expiresAt = new Date();
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-      updates.membershipExpiresAt = expiresAt.toISOString();
-    } else if (type === 'lifetime') {
-      updates.membershipExpiresAt = undefined; // 终身不过期
-    }
+    // 获取站点域名用于回调
+    const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-avatar-market.vercel.app';
 
-    const updatedUser = await DB.User.update(auth.userId, updates);
-    if (!updatedUser) {
-      return NextResponse.json({ error: '更新会员状态失败' }, { status: 500 });
+    // 获取支付宝支付链接
+    const payUrl = await createPagePayUrl({
+      orderId,
+      amount: amountYuan,
+      subject: MEMBERSHIP_NAMES[type],
+      notifyUrl: `${host}/api/membership/notify`,
+      returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
+    });
+
+    if (!payUrl) {
+      // 支付宝未配置或调用失败，返回订单信息
+      return NextResponse.json({
+        success: true,
+        order: {
+          id: orderId,
+          type,
+          amount,
+          amountYuan,
+          status: 'pending',
+        },
+        payUrl: null,
+        message: '支付功能暂未开通，请联系客服完成支付',
+      });
     }
 
     return NextResponse.json({
       success: true,
-      message: '会员开通成功',
-      user: updatedUser,
-      orderId: order?.id,
+      order: {
+        id: orderId,
+        type,
+        amount,
+        amountYuan,
+        status: 'pending',
+      },
+      payUrl,
     });
   } catch (error: any) {
     console.error('Membership order error:', error);
     return NextResponse.json(
-      { error: error.message || '开通失败' },
+      { error: error.message || '创建订单失败' },
       { status: 500 }
     );
   }
