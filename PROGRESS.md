@@ -425,6 +425,71 @@ CREATE TABLE IF NOT EXISTS membership_orders (...);
 
 ---
 
+### Phase 18 (04-13): 设置页+会员中心+入驻申请详情增强
+
+**需求**：
+1. 设置页空壳→完整功能（修改昵称/电话/简介/身份+会员入口）
+2. 会员中心页面（套餐对比+购买流程）
+3. 入驻申请详情看不到工作经历和文件
+
+**修改**：
+
+Bug1: 设置页是空壳
+- **现象**: `settings/page.tsx` 只有9行，无任何功能
+- **修复**: 完整重写，包含4个区块：会员状态卡片、基本信息编辑、账户信息（只读）、会员中心入口
+
+Bug2: 会员系统只有"壳"
+- **现象**: 数据库表有了，但没有购买页面、购买API、侧边栏入口，"升级会员"按钮是`alert('开发中')`假按钮
+- **修复**:
+  - 新建 `/creator/membership` 页面：年费9.9/终身99套餐+权益对比表+FAQ
+  - 新建 `POST /api/membership/order` API：模拟支付+创建订单+升级会员状态
+  - 侧边栏添加"会员中心"菜单项（Crown图标）
+  - 修复创建分身页和我的分身页的"升级会员"按钮→跳转`/creator/membership`
+
+Bug3: 入驻申请详情缺失工作经历
+- **现象**: 前端有工作经历表单但提交时没传给后端，审核详情看不到
+- **修复**:
+  - `apply/page.tsx` 提交时传 `experiences` 数组
+  - `creator-applications/route.ts` API处理 `experiences`/`resume_url`/`portfolio_url` 字段
+  - `admin/reviews/page.tsx` 审核详情展示工作经历+简历链接+作品集链接
+
+代码优化：
+- 提取 `AVATAR_LIMITS` 到共享配置 `lib/constants.ts`（消除3处重复定义）
+- `lib/constants.ts` 新增 `MEMBERSHIP_PRICES`/`MEMBERSHIP_LABELS`/`MEMBERSHIP_FEATURES`
+- 新建 `PUT /api/user/profile` API（verifyAuth+昵称查重）
+- `store.updateProfile` 修复：真正调API而非仅本地更新
+- User类型+数据库映射添加 `phone` 字段
+- SQL迁移: `supabase/migrations/phase18_settings_and_application.sql`
+
+#### 修改文件清单
+1. `app/creator/settings/page.tsx` — **完整重写** 设置页
+2. `app/creator/membership/page.tsx` — **新建** 会员中心页面
+3. `app/api/membership/order/route.ts` — **新建** 会员购买API
+4. `app/api/user/profile/route.ts` — **新建** 用户资料更新API
+5. `lib/constants.ts` — **新建** 共享常量配置
+6. `supabase/migrations/phase18_settings_and_application.sql` — **新建** 数据库迁移
+7. `app/creator/layout.tsx` — 侧边栏添加会员中心菜单项
+8. `app/creator/avatar/create/page.tsx` — 假按钮→Link跳转会员中心
+9. `app/creator/avatars/page.tsx` — 假按钮→Link跳转会员中心
+10. `app/creator/onboarding/apply/page.tsx` — 提交时传experiences
+11. `app/api/creator-applications/route.ts` — 处理新字段
+12. `app/admin/reviews/page.tsx` — 审核详情展示工作经历
+13. `app/api/avatars/route.ts` — AVATAR_LIMITS从constants导入
+14. `lib/types/index.ts` — User接口添加phone字段
+15. `lib/db/supabase.ts` — phone字段映射
+16. `lib/store/index.ts` — updateProfile调API
+
+#### ⚠️ 需要用户操作
+在 Supabase SQL Editor 中执行 `supabase/migrations/phase18_settings_and_application.sql`:
+```sql
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS experiences JSONB DEFAULT '[]';
+ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS resume_url TEXT;
+ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS portfolio_url TEXT;
+```
+
+---
+
 ## 当前功能状态
 
 ### ✅ 已完成
@@ -436,20 +501,20 @@ CREATE TABLE IF NOT EXISTS membership_orders (...);
 | AI对话 | ✅ 已上线 | Kimi/阿里云百炼 |
 | 雇佣流程 | ✅ 已上线 | 确认/支付模拟 |
 | 工作区 | ✅ 已上线 | 任务管理 |
-| 创作者入驻 | ✅ 已上线 | 申请/审核 |
+| 创作者入驻 | ✅ 已上线 | 申请/审核（含工作经历） |
 | 管理后台 | ✅ 已上线 | Dashboard/分身/订单/审核/用户 |
 | 通知系统 | ✅ 已上线 | 基础通知 |
 | 消息系统 | ✅ 已上线 | 群发+收件箱+已读(Phase 11) |
 | 反馈系统 | ✅ 已上线 | 提交+回复+历史(Phase 11) |
+| 会员系统 | ✅ 已上线 | 年费9.9/终身99+购买流程(Phase 18,暂模拟支付) |
+| 账户设置 | ✅ 已上线 | 修改昵称/电话/简介/身份(Phase 18) |
 
 ### ⏳ 待完成
 | 功能 | 优先级 | 说明 |
 |------|--------|------|
-| 微信支付 | P1 | 真实支付集成（含会员购买） |
-| 文件上传 | P1 | 头像/记忆文件（限制500KB/人） |
+| 微信支付 | P1 | 真实支付集成（替换会员购买模拟） |
+| 文件上传 | P1 | 头像/记忆文件/简历上传（限制500KB/人） |
 | 人机协同完整流程 | P2 | AI任务处理+真人审核 |
-| 会员支付流程 | P2 | 9.9元/年 + 99元终身，对接微信支付 |
-| 组件UI完善 | P3 | 响应式优化 |
 
 ---
 
