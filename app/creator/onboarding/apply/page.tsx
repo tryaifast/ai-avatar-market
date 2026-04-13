@@ -111,6 +111,9 @@ export default function OnboardingApplyPage() {
           bio: formData.bio,
           skills: formData.skills,
           portfolioUrls: [],
+          experiences: formData.experiences.filter(e => e.company || e.position),
+          resumeUrl: null,
+          portfolioUrl: null,
         }),
       });
       const data = await res.json();

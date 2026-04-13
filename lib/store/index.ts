@@ -94,13 +94,25 @@ export const useAuthStore = create<AuthState>()(
       },
 
       updateProfile: async (updates) => {
-        const { user } = get();
+        const { user, token } = get();
         if (!user) return { success: false, error: 'Not authenticated' };
 
         try {
-          // 这里需要添加更新用户API
-          set({ user: { ...user, ...updates } });
-          return { success: true };
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (token) headers['Authorization'] = `Bearer ${token}`;
+          
+          const res = await fetch('/api/user/profile', {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(updates),
+          });
+          const data = await res.json();
+          
+          if (data.success) {
+            set({ user: data.user });
+            return { success: true };
+          }
+          return { success: false, error: data.error };
         } catch (error: any) {
           return { success: false, error: error.message };
         }

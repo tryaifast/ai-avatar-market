@@ -11,13 +11,7 @@ import {
 } from 'lucide-react';
 import { identityTags, communicationStyles, taskTypes } from '@/lib/utils';
 import { useAuthStore, useApplicationStore, useAvatarStore, authFetch } from '@/lib/store';
-
-// 分身数量限制配置
-const AVATAR_LIMITS: Record<string, number> = {
-  free: 1,
-  yearly: 10,
-  lifetime: 10,
-};
+import { AVATAR_LIMITS } from '@/lib/constants';
 
 const steps = [
   { id: 'basic', label: '基本信息', description: '名称、头像、简介' },
@@ -118,9 +112,9 @@ export default function CreateAvatarPage() {
               管理分身
             </Link>
             {membershipType === 'free' && (
-              <button className="btn-primary" onClick={() => alert('会员系统开发中，敬请期待！')}>
+              <Link href="/creator/membership" className="btn-primary">
                 升级会员
-              </button>
+              </Link>
             )}
           </div>
         </div>

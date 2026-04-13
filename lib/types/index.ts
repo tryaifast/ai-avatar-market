@@ -14,6 +14,7 @@ export interface User {
   role: UserRole;
   identity: IdentityTag[]; // 身份标签：程序员、设计师、运营等
   bio?: string;
+  phone?: string; // 联系电话
   createdAt: string;
   onboardingStatus?: 'pending' | 'submitted' | 'approved' | 'rejected' | 'banned'; // 创作者入驻状态
   membershipType?: 'free' | 'yearly' | 'lifetime'; // 会员类型

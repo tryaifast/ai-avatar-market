@@ -413,6 +413,46 @@ function AdminReviewsContent() {
                   </div>
                 )}
 
+                {/* 工作经历 */}
+                {detailItem.experiences && Array.isArray(detailItem.experiences) && detailItem.experiences.length > 0 && (
+                  <div className="mb-4">
+                    <span className="text-gray-500 text-sm block mb-2">工作经历：</span>
+                    <div className="space-y-3">
+                      {detailItem.experiences.map((exp: any, i: number) => (
+                        <div key={i} className="bg-gray-50 p-3 rounded text-sm">
+                          <div className="flex items-center gap-3 mb-1">
+                            <span className="font-medium text-gray-900">{exp.company || '-'}</span>
+                            <span className="text-gray-500">·</span>
+                            <span className="text-gray-700">{exp.position || '-'}</span>
+                          </div>
+                          {exp.duration && <p className="text-gray-500 text-xs mb-1">{exp.duration}</p>}
+                          {exp.description && <p className="text-gray-600">{exp.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 简历链接 */}
+                {detailItem.resume_url && (
+                  <div className="mb-4">
+                    <span className="text-gray-500 text-sm">简历：</span>
+                    <a href={detailItem.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline ml-1">
+                      查看简历
+                    </a>
+                  </div>
+                )}
+
+                {/* 作品集链接 */}
+                {detailItem.portfolio_url && (
+                  <div className="mb-4">
+                    <span className="text-gray-500 text-sm">作品集：</span>
+                    <a href={detailItem.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline ml-1">
+                      查看作品集
+                    </a>
+                  </div>
+                )}
+
                 {detailItem.skills?.length > 0 && (
                   <div className="mb-4">
                     <span className="text-gray-500 text-sm">技能：</span>

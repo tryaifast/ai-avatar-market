@@ -62,6 +62,7 @@ export const UserDB = {
     if (updates.role !== undefined) dbUpdates.role = updates.role;
     if (updates.password !== undefined) dbUpdates.password = updates.password;
     if (updates.wallet?.balance !== undefined) dbUpdates.wallet_balance = updates.wallet.balance;
+    if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
     if ((updates as any).membershipType !== undefined) dbUpdates.membership_type = (updates as any).membershipType;
     if ((updates as any).membershipExpiresAt !== undefined) dbUpdates.membership_expires_at = (updates as any).membershipExpiresAt;
 
@@ -81,6 +82,7 @@ export const UserDB = {
       role: data.role as any,
       identity: data.identity || [],
       bio: data.bio,
+      phone: data.phone || undefined,
       onboardingStatus: data.onboarding_status || undefined,
       membershipType: data.membership_type || 'free',
       membershipExpiresAt: data.membership_expires_at || undefined,

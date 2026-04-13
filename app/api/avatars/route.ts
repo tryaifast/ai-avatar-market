@@ -6,12 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
 import { verifyAuth } from '@/lib/auth';
 
-// 分身数量限制配置
-const AVATAR_LIMITS: Record<string, number> = {
-  free: 1,      // 免费用户1个分身
-  yearly: 10,   // 年费会员10个分身
-  lifetime: 10, // 终身会员10个分身
-};
+import { AVATAR_LIMITS } from '@/lib/constants';
 
 // GET /api/avatars - 获取分身列表
 export async function GET(req: NextRequest) {

@@ -7,13 +7,7 @@ import {
   TrendingUp, Users, ArrowLeft, Sparkles, Shield, Crown
 } from 'lucide-react';
 import { useAvatarStore, useAuthStore, useApplicationStore, authFetch } from '@/lib/store';
-
-// 分身数量限制
-const AVATAR_LIMITS: Record<string, number> = {
-  free: 1,
-  yearly: 10,
-  lifetime: 10,
-};
+import { AVATAR_LIMITS } from '@/lib/constants';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   active: {
@@ -181,12 +175,12 @@ export default function MyAvatarsPage() {
                     <p className="text-sm text-gray-500">升级会员可创建最多10个分身 · 年费¥9.9 / 终身¥99</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => alert('会员系统开发中，敬请期待！')}
+                <Link
+                  href="/creator/membership"
                   className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 whitespace-nowrap"
                 >
                   升级会员
-                </button>
+                </Link>
               </div>
             )}
 

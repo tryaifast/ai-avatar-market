@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard, Bot, Briefcase, Wallet, MessageSquare, Settings, LogOut
+  LayoutDashboard, Bot, Briefcase, Wallet, MessageSquare, Settings, LogOut, Crown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
@@ -15,6 +15,7 @@ const menuItems = [
   { href: '/creator/tasks', icon: Briefcase, label: '任务管理' },
   { href: '/creator/earnings', icon: Wallet, label: '收益' },
   { href: '/creator/messages', icon: MessageSquare, label: '消息' },
+  { href: '/creator/membership', icon: Crown, label: '会员中心' },
   { href: '/creator/settings', icon: Settings, label: '设置' },
 ];
 

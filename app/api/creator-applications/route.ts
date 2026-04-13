@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
       bio: data.bio || '',
       skills: data.skills || [],
       portfolio_urls: data.portfolioUrls || [],
+      experiences: data.experiences || [],
+      resume_url: data.resumeUrl || null,
+      portfolio_url: data.portfolioUrl || null,
       status: 'pending',
       created_at: new Date().toISOString(),
     });
