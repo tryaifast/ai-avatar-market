@@ -591,6 +591,52 @@ Bug2: 管理后台授予会员不生效
 - **Token必须是JWT** — /api/auth/me 用 x-user-id header 而非 JWT，是历史遗留问题，必须修复
 - **Zustand缓存需主动刷新** — 管理后台修改数据后，用户端需要主动调 API 刷新
 
+### Phase 22 (04-14): 支付宝支付链路修复
+
+**需求**：
+1. 会员中心点击"升级会员"，显示"支付功能暂未开通，请联系客服完成支付"
+2. 订单创建成功但支付宝支付链接返回 null
+
+**根因分析**：
+- `lib/alipay.ts` 中使用 `require('crypto')` 动态引入 crypto 模块
+- 在 Next.js 13 App Router + ESM 环境下，`require()` 可能失败或被 webpack 错误处理
+- `createPagePayUrl()` 中 `getConfig().isConfigured` 返回 false 或 `sign()` 抛异常被 catch 后返回 null
+- 订单 API 不区分"配置缺失"和"签名失败"，统一返回模糊错误消息
+
+**修改**：
+
+1. `lib/alipay.ts` — 核心修复
+   - `require('crypto')` → `import crypto from 'crypto'`（标准 ESM 导入）
+   - 添加 `import 'server-only'` 防止客户端引用
+   - `getConfig()` 增加详细日志（打印 hasAppId/hasPrivateKey/hasAlipayPublicKey）
+   - `createPagePayUrl()` 增加签名过程日志
+   - 新增 `isAlipayConfigured()` 和 `isAlipaySandbox()` 导出函数
+
+2. `next.config.js` — 构建配置
+   - 添加 `serverExternalPackages: ['crypto']` 确保 crypto 不被 webpack 打包
+
+3. `app/api/membership/order/route.ts` — 增强错误处理
+   - 先检查 `isAlipayConfigured()` 再生成支付链接
+   - 区分"配置缺失"（`alipayReady: false`）和"签名失败"（`alipayReady: true` 但 payUrl null）
+   - 返回 `sandbox` 字段让前端知道是否沙箱环境
+   - 增加更多日志便于排查
+
+4. `app/creator/membership/page.tsx` — 前端优化
+   - 根据 `data.alipayReady` 区分不同错误场景
+   - 配置缺失 vs 签名失败 显示不同提示
+
+5. `.gitignore` — 排除临时文件
+   - 新增 `build-output.txt` 和 `gen_keys.py`
+
+6. `package.json` — 新增依赖
+   - `server-only`: 确保 alipay.ts 只在服务端运行
+
+**教训**：
+- **require()不适用于Next.js ESM** — `require('crypto')` 在 Next.js 13 App Router 的 API Route 中可能不稳定，应使用 `import crypto from 'crypto'`
+- **server-only防止客户端引用** — 服务端专用模块必须加 `import 'server-only'`
+- **错误消息要具体** — "支付功能暂未开通"不区分配置缺失和签名失败，应区分返回
+- **serverExternalPackages** — Next.js 默认会把 Node.js 模块打包，crypto 等内置模块应排除
+
 **需求**：
 1. 会员中心点击开通返回500错误，支付宝无法拉起支付
 2. 管理后台无法查看/授予/取消用户会员身份
