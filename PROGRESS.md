@@ -560,7 +560,36 @@ Bug2: 审核详情看不到完整申请信息
 
 **SQL需执行**: `supabase/migrations/phase19_alipay_and_application.sql`
 
-### Phase 20 (04-13): 会员订单API修复+管理后台会员管理
+### Phase 21 (04-14): 会员订单UUID修复+管理后台授予会员+认证API修复
+
+**需求**：
+1. 创建99元终身会员订单报错：`invalid input syntax for type uuid: "MEM202604140238202744"`
+2. 管理后台授予用户终身会员没有生效
+3. /api/auth/me 使用 x-user-id header 而非 JWT 认证（历史遗留问题）
+
+**修改**：
+
+Bug1: 会员订单UUID类型错误
+- **根因**: `membership_orders` 表的 `id` 列在数据库中是 UUID 类型（phase17 定义），但 phase19 SQL 用 `id TEXT PRIMARY KEY` 重建。由于 `CREATE TABLE IF NOT EXISTS` 不重建已存在的表，导致 `id` 仍为 UUID 类型，但缺少 `DEFAULT gen_random_uuid()` 或 `order_no` 列未正确创建
+- **修复**:
+  - `supabase/migrations/phase21_fix_membership_orders.sql`: DROP + CREATE 重建表，确保 `id UUID DEFAULT gen_random_uuid()` + `order_no TEXT NOT NULL`
+  - `app/api/membership/order/route.ts`: 添加详细日志，确认 insert 数据格式
+  - ⚠️ **需要在 Supabase SQL Editor 中执行 phase21 SQL 脚本**
+
+Bug2: 管理后台授予会员不生效
+- **根因**: 两个问题叠加：
+  1. `/api/auth/me` 用 `x-user-id` header 认证而非 JWT，导致前端 authFetch 调用时认证失败，无法获取最新用户信息
+  2. 用户端 Zustand store 缓存旧会员状态，刷新后从 localStorage 恢复旧数据
+- **修复**:
+  - `app/api/auth/me/route.ts`: 改用 `verifyAuth(req)` JWT 认证（历史遗留教训 #7）
+  - `app/creator/membership/page.tsx`: 页面加载时调用 `/api/auth/me` 刷新用户信息
+  - `app/creator/settings/page.tsx`: 同上，页面加载时刷新用户信息
+  - `app/api/admin/users/[id]/route.ts`: grantMembership 操作增加详细日志
+
+**教训**：
+- **SQL文件≠表已创建** — 再次验证：phase19/20 SQL 可能没在 Supabase 中执行，或执行顺序不对
+- **Token必须是JWT** — /api/auth/me 用 x-user-id header 而非 JWT，是历史遗留问题，必须修复
+- **Zustand缓存需主动刷新** — 管理后台修改数据后，用户端需要主动调 API 刷新
 
 **需求**：
 1. 会员中心点击开通返回500错误，支付宝无法拉起支付
