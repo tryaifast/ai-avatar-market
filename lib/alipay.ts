@@ -71,37 +71,56 @@ export function generateOrderId(): string {
   return `MEM${timestamp}${random}`;
 }
 
+// ========== PEM 密钥格式化 ==========
+
+function formatPEM(key: string, type: 'PRIVATE KEY' | 'PUBLIC KEY'): string {
+  // 如果已经有 PEM 头尾，直接返回
+  if (key.includes('-----BEGIN')) {
+    return key;
+  }
+
+  // 去掉所有空白字符，得到纯 base64
+  const rawKey = key.replace(/\s+/g, '');
+
+  // 按64字符换行（PEM标准格式）
+  const lines: string[] = [];
+  for (let i = 0; i < rawKey.length; i += 64) {
+    lines.push(rawKey.substring(i, i + 64));
+  }
+
+  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----`;
+}
+
 // ========== RSA2 签名 ==========
 
 function sign(content: string, privateKey: string): string {
+  const formattedKey = formatPEM(privateKey, 'PRIVATE KEY');
+  console.log('[alipay] sign() key length:', formattedKey.length, 'has headers:', formattedKey.includes('-----BEGIN'));
+
   const signObj = crypto.createSign('RSA-SHA256');
   signObj.update(content, 'utf8');
 
-  // 格式化私钥
-  let formattedKey = privateKey;
-  if (!formattedKey.includes('-----')) {
-    formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
+  try {
+    const result = signObj.sign(formattedKey, 'base64');
+    console.log('[alipay] sign() success, signature length:', result.length);
+    return result;
+  } catch (err: any) {
+    console.error('[alipay] sign() FAILED:', err.message);
+    throw err;
   }
-
-  return signObj.sign(formattedKey, 'base64');
 }
 
 // ========== RSA2 验签 ==========
 
 function verify(content: string, signStr: string, publicKey: string): boolean {
   try {
+    const formattedKey = formatPEM(publicKey, 'PUBLIC KEY');
     const verifyObj = crypto.createVerify('RSA-SHA256');
     verifyObj.update(content, 'utf8');
 
-    // 格式化公钥
-    let formattedKey = publicKey;
-    if (!formattedKey.includes('-----')) {
-      formattedKey = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
-    }
-
     return verifyObj.verify(formattedKey, signStr, 'base64');
-  } catch (err) {
-    console.error('[alipay] Verify sign error:', err);
+  } catch (err: any) {
+    console.error('[alipay] verify() error:', err.message);
     return false;
   }
 }
@@ -168,8 +187,9 @@ export async function createPagePayUrl(params: {
     const payUrl = `${config.gateway}?${qs}`;
     console.log('[alipay] Pay URL generated successfully, length:', payUrl.length);
     return payUrl;
-  } catch (error) {
-    console.error('[alipay] Create pay URL error:', error);
+  } catch (error: any) {
+    console.error('[alipay] Create pay URL error:', error.message || error);
+    console.error('[alipay] Error stack:', error.stack);
     return null;
   }
 }

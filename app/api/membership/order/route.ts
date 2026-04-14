@@ -117,8 +117,8 @@ export async function POST(req: NextRequest) {
         returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
       });
       console.log('[membership/order] payUrl generated:', payUrl ? 'SUCCESS' : 'NULL');
-    } catch (error) {
-      console.error('[membership/order] Create pay URL error:', error);
+    } catch (error: any) {
+      console.error('[membership/order] Create pay URL error:', error.message || error);
       // 支付宝签名失败，仍然返回订单信息
     }
 
