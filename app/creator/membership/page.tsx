@@ -19,6 +19,23 @@ export default function MembershipPage() {
   const [pendingOrder, setPendingOrder] = useState<{ id: string; type: string; amountYuan: string } | null>(null);
   const [polling, setPolling] = useState(false);
 
+  // 页面加载时刷新用户信息（确保会员状态最新，如管理后台刚修改过）
+  useEffect(() => {
+    const refreshUser = async () => {
+      try {
+        const res = await authFetch('/api/auth/me');
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        // 静默失败，不影响页面使用
+        console.error('Failed to refresh user info:', err);
+      }
+    };
+    refreshUser();
+  }, []);
+
   const membershipType = (user as any)?.membershipType || 'free';
 
   // 处理支付宝支付结果回调

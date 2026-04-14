@@ -21,14 +21,31 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: '缺少订单号' }, { status: 400 });
     }
 
-    // 查询订单
-    const { data: order, error } = await (DB.db.from('membership_orders') as any)
+    // 查询订单（orderId 可能是 UUID 或 order_no，优先用 id 查，查不到再用 order_no）
+    let order: any = null;
+    let orderError: any = null;
+
+    // 先尝试用 id (UUID) 查询
+    const { data: orderById, error: errById } = await (DB.db.from('membership_orders') as any)
       .select('*')
       .eq('id', orderId)
-      .eq('user_id', auth.userId) // 只能查自己的订单
+      .eq('user_id', auth.userId)
       .single();
 
-    if (error || !order) {
+    if (orderById) {
+      order = orderById;
+    } else {
+      // 再用 order_no 查询
+      const { data: orderByNo, error: errByNo } = await (DB.db.from('membership_orders') as any)
+        .select('*')
+        .eq('order_no', orderId)
+        .eq('user_id', auth.userId)
+        .single();
+      order = orderByNo;
+      orderError = errByNo;
+    }
+
+    if (!order) {
       return NextResponse.json({ error: '订单不存在' }, { status: 404 });
     }
 

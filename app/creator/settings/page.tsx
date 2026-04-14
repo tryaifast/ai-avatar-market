@@ -6,12 +6,29 @@ import {
   User, Phone, FileText, Crown, ChevronRight, Check, 
   AlertCircle, Loader2, Shield, Sparkles
 } from 'lucide-react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, authFetch } from '@/lib/store';
 import { MEMBERSHIP_LABELS, AVATAR_LIMITS, MEMBERSHIP_PRICES, MEMBERSHIP_FEATURES } from '@/lib/constants';
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const updateProfile = useAuthStore((s) => s.updateProfile);
+  
+  // 页面加载时刷新用户信息（确保会员状态最新）
+  useEffect(() => {
+    const refreshUser = async () => {
+      try {
+        const res = await authFetch('/api/auth/me');
+        const data = await res.json();
+        if (data.success && data.user) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error('Failed to refresh user info:', err);
+      }
+    };
+    refreshUser();
+  }, []);
   
   // 编辑状态
   const [editingField, setEditingField] = useState<string | null>(null);

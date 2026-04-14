@@ -4,20 +4,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
+import { verifyAuth } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
-    // 从请求头获取用户ID（实际项目中应使用JWT）
-    const userId = req.headers.get('x-user-id');
-
-    if (!userId) {
+    // 使用 JWT 认证
+    const auth = await verifyAuth(req);
+    if (!auth) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const user = await DB.User.getById(userId);
+    const user = await DB.User.getById(auth.userId);
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },

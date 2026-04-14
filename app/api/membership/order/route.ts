@@ -48,35 +48,45 @@ export async function POST(req: NextRequest) {
 
     const amount = MEMBERSHIP_PRICES[type as keyof typeof MEMBERSHIP_PRICES]; // 单位：分
     const amountYuan = MEMBERSHIP_AMOUNT[type]; // 单位：元
-    const orderId = generateOrderId();
+    const orderNo = generateOrderId(); // MEM... 格式的订单号，用于支付宝 out_trade_no
 
     // 创建待支付订单
+    // id 列为 UUID 类型，由数据库 gen_random_uuid() 自动生成
+    // order_no 存储 MEM 格式字符串，用于支付宝 out_trade_no
+    const insertData: any = {
+      order_no: orderNo,
+      user_id: auth.userId,
+      type,
+      amount,
+      status: 'pending',
+      payment_method: 'alipay',
+    };
+
+    console.log('[membership/order] Creating order:', JSON.stringify({ ...insertData, user_id: insertData.user_id?.substring(0, 8) + '...' }));
+
     const { data: order, error: orderError } = await (DB.db.from('membership_orders') as any)
-      .insert({
-        id: orderId,
-        user_id: auth.userId,
-        type,
-        amount,
-        status: 'pending',
-        payment_method: 'alipay',
-        created_at: new Date().toISOString(),
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (orderError) {
-      console.error('Create order error:', orderError);
+      console.error('[membership/order] Create order error:', orderError.message, orderError.code, orderError.details);
       return NextResponse.json({ error: '创建订单失败: ' + (orderError.message || '未知错误') }, { status: 500 });
     }
+
+    console.log('[membership/order] Order created successfully, id:', order?.id);
+
+    // 用数据库生成的 UUID 作为内部 id，用 order_no 作为支付宝订单号
+    const orderId = order.id; // UUID
 
     // 获取站点域名用于回调
     const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-avatar-market.vercel.app';
 
-    // 获取支付宝支付链接
+    // 获取支付宝支付链接（out_trade_no 使用 order_no）
     let payUrl: string | null = null;
     try {
       payUrl = await createPagePayUrl({
-        orderId,
+        orderId: orderNo,
         amount: amountYuan,
         subject: MEMBERSHIP_NAMES[type],
         notifyUrl: `${host}/api/membership/notify`,
@@ -93,6 +103,7 @@ export async function POST(req: NextRequest) {
         success: true,
         order: {
           id: orderId,
+          orderNo,
           type,
           amount,
           amountYuan,
@@ -107,6 +118,7 @@ export async function POST(req: NextRequest) {
       success: true,
       order: {
         id: orderId,
+        orderNo,
         type,
         amount,
         amountYuan,

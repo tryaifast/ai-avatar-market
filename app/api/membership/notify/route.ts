@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
       return new NextResponse('success', { status: 200 });
     }
 
-    // 查询订单
+    // 查询订单（支付宝的 out_trade_no 对应我们的 order_no）
     const { data: order, error: orderError } = await (DB.db.from('membership_orders') as any)
       .select('*')
-      .eq('id', outTradeNo)
+      .eq('order_no', outTradeNo)
       .single();
 
     if (orderError || !order) {
-      console.error('Order not found:', outTradeNo, orderError);
+      console.error('Order not found by order_no:', outTradeNo, orderError);
       return new NextResponse('fail', { status: 404 });
     }
 
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       return new NextResponse('fail', { status: 400 });
     }
 
-    // 更新订单状态为已支付
+    // 更新订单状态为已支付（用 UUID id 定位）
     const { error: updateOrderError } = await (DB.db.from('membership_orders') as any)
       .update({
         status: 'paid',
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
         trade_no: tradeNo,
         payment_method: 'alipay',
       })
-      .eq('id', outTradeNo);
+      .eq('id', order.id);
 
     if (updateOrderError) {
       console.error('Update order error:', updateOrderError);

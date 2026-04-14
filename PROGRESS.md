@@ -560,6 +560,39 @@ Bug2: 审核详情看不到完整申请信息
 
 **SQL需执行**: `supabase/migrations/phase19_alipay_and_application.sql`
 
+### Phase 20 (04-13): 会员订单API修复+管理后台会员管理
+
+**需求**：
+1. 会员中心点击开通返回500错误，支付宝无法拉起支付
+2. 管理后台无法查看/授予/取消用户会员身份
+
+**修改**：
+
+Bug1: 会员订单API 500错误
+- **现象**: POST /api/membership/order 返回500 Internal Server Error
+- **根因**: `lib/alipay.ts` 使用 `import crypto from 'crypto'`，在某些运行时环境下crypto模块加载失败
+- **修复**:
+  - `lib/alipay.ts`: `import crypto` → `require('crypto')` 动态引入，确保Node.js运行时兼容
+  - `createPagePayUrl` 增加 try-catch，签名失败不阻断订单创建
+  - `app/api/membership/order/route.ts`: req.json()增加try-catch，错误日志更详细
+
+Bug2: 管理后台无会员管理
+- **现象**: 管理员看不到用户会员类型，无法授予/取消会员
+- **修复**:
+  - `app/api/admin/users/[id]/route.ts`: PUT接口新增 `action=grantMembership` 操作
+    - 授予年费会员（自动设置1年过期时间）
+    - 授予终身会员（过期时间设null）
+    - 取消会员（降级为free）
+  - `app/api/admin/users/route.ts`: GET返回 `membershipType` + `membershipExpiresAt`
+  - `app/api/admin/users/[id]/route.ts`: GET返回 `membershipOrders` 支付记录
+  - `app/admin/users/page.tsx`: 
+    - 用户列表表格新增"会员"列（免费/年费/终身标签+颜色区分）
+    - 新增会员筛选下拉框
+    - 每个用户新增"会员"操作按钮
+    - 新增会员管理弹窗（授予年费/终身 + 取消会员 + 安全提示）
+    - 用户详情弹窗新增"会员信息"区块（会员类型+过期时间+支付记录）
+  - `.gitignore`: 新增 `*.ps1` 和 `build_output.txt` 排除规则
+
 ---
 
 ## 技术架构

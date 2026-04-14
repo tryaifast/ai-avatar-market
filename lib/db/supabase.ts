@@ -68,7 +68,14 @@ export const UserDB = {
     if ((updates as any).onboardingStatus !== undefined) dbUpdates.onboarding_status = (updates as any).onboardingStatus;
 
     const { data, error } = await db.from('users').update(dbUpdates).eq('id', id).select().single();
-    if (error || !data) return undefined;
+    if (error) {
+      console.error('[UserDB.update] Supabase error:', JSON.stringify({ id, dbUpdates, errorMsg: error.message, errorCode: error.code }));
+      return undefined;
+    }
+    if (!data) {
+      console.error('[UserDB.update] No data returned for id:', id);
+      return undefined;
+    }
     return this.toUser(data);
   },
 

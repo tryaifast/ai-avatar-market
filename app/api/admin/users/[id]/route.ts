@@ -79,35 +79,50 @@ export async function PUT(
         return NextResponse.json({ error: '无效的会员类型' }, { status: 400 });
       }
 
-      const updates: any = {
-        membershipType: membershipType,
+      const dbUpdates: any = {
+        membership_type: membershipType,
       };
 
       if (membershipType === 'yearly') {
         const expiresAt = new Date();
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-        updates.membershipExpiresAt = expiresAt.toISOString();
+        dbUpdates.membership_expires_at = expiresAt.toISOString();
       } else if (membershipType === 'lifetime') {
-        updates.membershipExpiresAt = null; // 终身不过期
+        dbUpdates.membership_expires_at = null; // 终身不过期
       } else if (membershipType === 'free') {
         // 取消会员
-        updates.membershipType = 'free';
-        updates.membershipExpiresAt = null;
+        dbUpdates.membership_type = 'free';
+        dbUpdates.membership_expires_at = null;
       }
 
-      const updatedUser = await DB.User.update(userId, updates);
-      if (!updatedUser) {
-        return NextResponse.json({ error: '更新会员失败' }, { status: 500 });
+      console.log('[grantMembership] Updating user:', userId, 'with:', JSON.stringify(dbUpdates));
+
+      // 直接用 DB.db 操作，确保 service role 绕过 RLS
+      const { data: updatedData, error: updateError } = await (DB.db.from('users') as any)
+        .update(dbUpdates)
+        .eq('id', userId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('[grantMembership] DB update error:', updateError.message, updateError.code);
+        return NextResponse.json({ error: '更新会员失败: ' + updateError.message }, { status: 500 });
       }
+      if (!updatedData) {
+        console.error('[grantMembership] No data returned for userId:', userId);
+        return NextResponse.json({ error: '更新会员失败：用户不存在' }, { status: 500 });
+      }
+
+      console.log('[grantMembership] Success for user:', userId, 'membership_type:', updatedData.membership_type);
 
       return NextResponse.json({
         success: true,
         user: {
-          id: (updatedUser as any).id,
-          name: (updatedUser as any).name,
-          email: (updatedUser as any).email,
-          membershipType: (updatedUser as any).membershipType || 'free',
-          membershipExpiresAt: (updatedUser as any).membershipExpiresAt,
+          id: updatedData.id,
+          name: updatedData.name,
+          email: updatedData.email,
+          membershipType: updatedData.membership_type || 'free',
+          membershipExpiresAt: updatedData.membership_expires_at,
         },
       });
     }
