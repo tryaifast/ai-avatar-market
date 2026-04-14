@@ -637,16 +637,23 @@ Bug2: 管理后台授予会员不生效
 - **错误消息要具体** — "支付功能暂未开通"不区分配置缺失和签名失败，应区分返回
 - **serverExternalPackages** — Next.js 默认会把 Node.js 模块打包，crypto 等内置模块应排除
 
-### Phase 23 (04-14): 支付宝签名失败修复（PEM密钥格式化）
+### Phase 23 (04-14): 支付宝签名失败修复（PEM密钥格式化 + PKCS#1检测）
 
 **需求**：
 1. 会员中心点击"升级会员"，显示"支付宝签名失败，请稍后重试或联系客服"
 2. Phase 22 修复了 `require→import` 后配置已能读取，但签名仍然失败
 
-**根因分析**：
+**根因分析**（两层问题）：
+
+**问题1**：64字符换行（Phase 23 初步修复）
 - `sign()` 函数中私钥格式化逻辑有 bug：当环境变量中的私钥是纯 base64 字符串（无 PEM 头尾）时，直接拼接 `-----BEGIN PRIVATE KEY-----\n<整行base64>\n-----END PRIVATE KEY-----`
 - PEM 标准要求 base64 内容**每行64字符换行**，一整行 base64 导致 `crypto.sign()` 无法正确解析私钥
-- `verify()` 函数中公钥格式化同理
+
+**问题2**：PKCS#1 vs PKCS#8 格式（Phase 23 最终修复）
+- 支付宝沙箱的 RSA2 私钥是 **PKCS#1 格式**（以 `MIIEow` 开头），需要用 `-----BEGIN RSA PRIVATE KEY-----` 头
+- 但 `formatPEM()` 统一使用 `-----BEGIN PRIVATE KEY-----`（PKCS#8 格式头），导致 `crypto.sign()` 报 `ERR_OSSL_UNSUPPORTED: DECODER routines::unsupported`
+- Vercel 调试结果：PKCS8格式签名失败，PKCS1格式签名成功（sigLen: 344）
+- 公钥以 `MIIBIj` 开头，是标准 PKCS#8 公钥格式，用 `-----BEGIN PUBLIC KEY-----` 是正确的
 
 **修改**：
 
@@ -654,6 +661,7 @@ Bug2: 管理后台授予会员不生效
    - 新增 `formatPEM(key, type)` 通用函数：
      - 如果密钥已有 PEM 头尾，直接返回
      - 否则：先去掉所有空白得到纯 base64 → 按64字符换行 → 添加 BEGIN/END 头尾
+     - **自动检测私钥格式**：PKCS#1（`MIIEow/p/q`开头）→ `RSA PRIVATE KEY`，PKCS#8 → `PRIVATE KEY`
    - `sign()`: 使用 `formatPEM(privateKey, 'PRIVATE KEY')` 格式化私钥
    - `verify()`: 使用 `formatPEM(publicKey, 'PUBLIC KEY')` 格式化公钥
    - `sign()` 增加 try-catch + 详细日志（key length、has headers、签名结果长度、失败错误消息）
@@ -662,13 +670,17 @@ Bug2: 管理后台授予会员不生效
 2. `app/api/membership/order/route.ts` — 日志增强
    - catch 块输出 `error.message` 而非整个 error 对象
 
+3. 已删除 `app/api/membership/debug-alipay/route.ts`（调试用，排查完毕）
+
 **教训**：
 - **PEM密钥必须64字符换行** — `crypto.sign()` 需要标准 PEM 格式，整行 base64 无法解析
 - **密钥环境变量可能无PEM头** — Vercel 环境变量中的密钥可能是纯 base64（无 BEGIN/END），格式化函数必须处理两种情况
 - **签名函数必须有详细日志** — 之前 sign() 失败时只返回 null 不抛异常，现在 throw err 让上层 catch 记录详细原因
+- **PKCS#1 vs PKCS#8 自动检测** — 支付宝沙箱密钥通常是 PKCS#1 格式（以 MIIEow 开头），需要用 `RSA PRIVATE KEY` 头；PKCS#8 用 `PRIVATE KEY` 头。formatPEM 必须自动检测
 
-**待验证**：
-- Vercel 部署后测试支付宝沙箱支付流程
+**验证**：
+- ✅ Vercel debug API 确认签名成功（signResult.success: true, signatureLength: 344）
+- 待用户端到端测试支付宝沙箱支付流程
 
 **需求**：
 1. 会员中心点击开通返回500错误，支付宝无法拉起支付
