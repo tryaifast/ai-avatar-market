@@ -1,6 +1,6 @@
 # AI Avatar Market - 项目进度报告
 
-> 最近更新: 2026-04-13
+> 最近更新: 2026-04-14
 > 应用方法论: Superpowers + DeerFlow
 
 ---
@@ -636,6 +636,39 @@ Bug2: 管理后台授予会员不生效
 - **server-only防止客户端引用** — 服务端专用模块必须加 `import 'server-only'`
 - **错误消息要具体** — "支付功能暂未开通"不区分配置缺失和签名失败，应区分返回
 - **serverExternalPackages** — Next.js 默认会把 Node.js 模块打包，crypto 等内置模块应排除
+
+### Phase 23 (04-14): 支付宝签名失败修复（PEM密钥格式化）
+
+**需求**：
+1. 会员中心点击"升级会员"，显示"支付宝签名失败，请稍后重试或联系客服"
+2. Phase 22 修复了 `require→import` 后配置已能读取，但签名仍然失败
+
+**根因分析**：
+- `sign()` 函数中私钥格式化逻辑有 bug：当环境变量中的私钥是纯 base64 字符串（无 PEM 头尾）时，直接拼接 `-----BEGIN PRIVATE KEY-----\n<整行base64>\n-----END PRIVATE KEY-----`
+- PEM 标准要求 base64 内容**每行64字符换行**，一整行 base64 导致 `crypto.sign()` 无法正确解析私钥
+- `verify()` 函数中公钥格式化同理
+
+**修改**：
+
+1. `lib/alipay.ts` — 核心修复
+   - 新增 `formatPEM(key, type)` 通用函数：
+     - 如果密钥已有 PEM 头尾，直接返回
+     - 否则：先去掉所有空白得到纯 base64 → 按64字符换行 → 添加 BEGIN/END 头尾
+   - `sign()`: 使用 `formatPEM(privateKey, 'PRIVATE KEY')` 格式化私钥
+   - `verify()`: 使用 `formatPEM(publicKey, 'PUBLIC KEY')` 格式化公钥
+   - `sign()` 增加 try-catch + 详细日志（key length、has headers、签名结果长度、失败错误消息）
+   - `createPagePayUrl()` 的 catch 块增加 error.stack 输出
+
+2. `app/api/membership/order/route.ts` — 日志增强
+   - catch 块输出 `error.message` 而非整个 error 对象
+
+**教训**：
+- **PEM密钥必须64字符换行** — `crypto.sign()` 需要标准 PEM 格式，整行 base64 无法解析
+- **密钥环境变量可能无PEM头** — Vercel 环境变量中的密钥可能是纯 base64（无 BEGIN/END），格式化函数必须处理两种情况
+- **签名函数必须有详细日志** — 之前 sign() 失败时只返回 null 不抛异常，现在 throw err 让上层 catch 记录详细原因
+
+**待验证**：
+- Vercel 部署后测试支付宝沙箱支付流程
 
 **需求**：
 1. 会员中心点击开通返回500错误，支付宝无法拉起支付
