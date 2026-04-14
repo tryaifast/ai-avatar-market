@@ -7,11 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export async function GET(req: NextRequest) {
-  // 仅限管理员或开发环境
-  const authHeader = req.headers.get('authorization');
-  if (process.env.NODE_ENV === 'production' && !authHeader) {
-    return NextResponse.json({ error: '需要认证' }, { status: 401 });
-  }
+  // 临时调试接口，排查完毕后删除
+  // 通过 query 参数 ?debug=1 访问
 
   const appId = process.env.ALIPAY_APP_ID;
   const privateKey = process.env.ALIPAY_PRIVATE_KEY;
