@@ -73,6 +73,15 @@ export function generateOrderId(): string {
 
 // ========== PEM 密钥格式化 ==========
 
+/**
+ * 自动检测密钥格式并格式化为标准 PEM
+ * 
+ * 支付宝沙箱密钥通常是 PKCS#1 格式（以 MIIEow 开头），
+ * 需要用 "RSA PRIVATE KEY" 头；而 PKCS#8 格式（以 MIIJQ 开头）
+ * 用 "PRIVATE KEY" 头。
+ * 
+ * 公钥统一使用 "PUBLIC KEY" 头（PKCS#8 格式）。
+ */
 function formatPEM(key: string, type: 'PRIVATE KEY' | 'PUBLIC KEY'): string {
   // 如果已经有 PEM 头尾，直接返回
   if (key.includes('-----BEGIN')) {
@@ -87,8 +96,20 @@ function formatPEM(key: string, type: 'PRIVATE KEY' | 'PUBLIC KEY'): string {
   for (let i = 0; i < rawKey.length; i += 64) {
     lines.push(rawKey.substring(i, i + 64));
   }
+  const base64Body = lines.join('\n');
 
-  return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----`;
+  // 自动检测私钥格式：PKCS#1 vs PKCS#8
+  if (type === 'PRIVATE KEY') {
+    // PKCS#1 RSA 私钥的 ASN.1 头字节 SEQUENCE 标识，
+    // base64 编码后通常以 "MIIEow" 或 "MIIEp" 开头
+    // PKCS#8 私钥通常以 "MIIJQ" 或 "MIIKQ" 开头
+    const isPKCS1 = rawKey.startsWith('MIIEow') || rawKey.startsWith('MIIEp') || rawKey.startsWith('MIIEq');
+    const pemType = isPKCS1 ? 'RSA PRIVATE KEY' : 'PRIVATE KEY';
+    console.log('[alipay] formatPEM: detected', isPKCS1 ? 'PKCS#1' : 'PKCS#8', 'private key format, first10:', rawKey.substring(0, 10));
+    return `-----BEGIN ${pemType}-----\n${base64Body}\n-----END ${pemType}-----`;
+  }
+
+  return `-----BEGIN ${type}-----\n${base64Body}\n-----END ${type}-----`;
 }
 
 // ========== RSA2 签名 ==========

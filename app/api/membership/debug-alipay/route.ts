@@ -43,7 +43,15 @@ export async function GET(req: NextRequest) {
     for (let i = 0; i < rawKey.length; i += 64) {
       lines.push(rawKey.substring(i, i + 64));
     }
-    return `-----BEGIN ${type}-----\n${lines.join('\n')}\n-----END ${type}-----`;
+    const base64Body = lines.join('\n');
+
+    if (type === 'PRIVATE KEY') {
+      const isPKCS1 = rawKey.startsWith('MIIEow') || rawKey.startsWith('MIIEp') || rawKey.startsWith('MIIEq');
+      const pemType = isPKCS1 ? 'RSA PRIVATE KEY' : 'PRIVATE KEY';
+      return `-----BEGIN ${pemType}-----\n${base64Body}\n-----END ${pemType}-----`;
+    }
+
+    return `-----BEGIN ${type}-----\n${base64Body}\n-----END ${type}-----`;
   }
 
   let formatPEMResult: any = {};
