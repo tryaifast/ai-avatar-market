@@ -165,6 +165,7 @@ export async function createPagePayUrl(params: {
   subject: string;
   notifyUrl: string;
   returnUrl: string;
+  passbackParams?: string; // 商户自定义回传参数，支付完成后原样返回（仅同步通知）
 }): Promise<string | null> {
   const config = getConfig();
   if (!config.isConfigured) {
@@ -174,13 +175,24 @@ export async function createPagePayUrl(params: {
 
   try {
     // 构建请求参数
-    const bizContent = JSON.stringify({
+    const bizContentObj: Record<string, any> = {
       out_trade_no: params.orderId,
       total_amount: params.amount,
       subject: params.subject,
       product_code: 'FAST_INSTANT_TRADE_PAY',
-    });
+    };
 
+    // passback_params: 商户自定义参数，支付完成后原样回传
+    // ⚠️ 仅在同步通知(return_url)中回传，不在异步通知(notify_url)中回传
+    if (params.passbackParams) {
+      bizContentObj.passback_params = params.passbackParams;
+    }
+
+    const bizContent = JSON.stringify(bizContentObj);
+
+    // ⚠️ return_url 不能包含 & 查询参数！
+    // 支付宝解码URL后会把 &xxx=... 当成独立参数参与验签，导致签名不一致
+    // 如需传参，用 passback_params 或在 return_url 中只使用 ?key=value（不带&）
     const systemParams: Record<string, string> = {
       app_id: config.appId!,
       method: 'alipay.trade.page.pay',

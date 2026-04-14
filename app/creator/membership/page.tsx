@@ -40,16 +40,43 @@ export default function MembershipPage() {
 
   // 处理支付宝支付结果回调
   useEffect(() => {
-    const payResult = searchParams.get('payResult');
-    const orderId = searchParams.get('orderId');
+    // 支付宝同步跳转时，会附加 out_trade_no, trade_no, sign 等参数
+    // 我们的 orderId 通过 passback_params 原样回传
+    const outTradeNo = searchParams.get('out_trade_no');
+    const passbackParams = searchParams.get('passback_params'); // 这是我们传的 orderId (UUID)
     
-    if (payResult === 'success' && orderId) {
+    if (outTradeNo || passbackParams) {
+      const orderId = passbackParams || ''; // 优先用 passback_params 中的 orderId
       setMessage({ type: 'info', text: '正在确认支付结果...' });
       setPolling(true);
-      setPendingOrder({ id: orderId, type: '', amountYuan: '' });
-      pollPayResult(orderId);
+      
+      if (orderId) {
+        setPendingOrder({ id: orderId, type: '', amountYuan: '' });
+        pollPayResult(orderId);
+      } else {
+        // 没有 orderId，直接刷新用户信息
+        refreshUserAfterPay();
+      }
     }
   }, [searchParams]);
+
+  // 支付后刷新用户信息（备用方案）
+  const refreshUserAfterPay = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/auth/me');
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUser(data.user);
+        const newType = (data.user as any)?.membershipType || 'free';
+        if (newType !== 'free') {
+          setMessage({ type: 'success', text: '会员开通成功！感谢您的支持' });
+        }
+      }
+    } catch (err) {
+      console.error('Refresh user after pay error:', err);
+    }
+    setPolling(false);
+  }, [setUser]);
 
   // 轮询支付结果
   const pollPayResult = useCallback(async (orderId: string, maxRetries = 10) => {
