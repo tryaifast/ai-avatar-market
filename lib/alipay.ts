@@ -1,7 +1,13 @@
 // ============================================
 // 支付宝支付工具（纯 Node.js 实现，无需第三方SDK）
 // 使用 crypto 模块做 RSA2 签名，手动构建支付请求
+//
+// 重要：此文件只能在服务端使用（API Routes / Server Components）
+// 使用 import crypto 是安全的，因为 Next.js API Routes 运行在 Node.js 环境
 // ============================================
+
+import 'server-only';
+import crypto from 'crypto';
 
 // ========== 配置 ==========
 
@@ -10,6 +16,20 @@ function getConfig() {
   const privateKey = process.env.ALIPAY_PRIVATE_KEY;
   const alipayPublicKey = process.env.ALIPAY_PUBLIC_KEY;
   const isSandbox = process.env.ALIPAY_SANDBOX === 'true';
+
+  const isConfigured = !!(appId && privateKey && alipayPublicKey);
+
+  // 详细日志：便于排查配置问题
+  if (!isConfigured) {
+    console.warn('[alipay] 配置不完整:', {
+      hasAppId: !!appId,
+      hasPrivateKey: !!privateKey,
+      hasAlipayPublicKey: !!alipayPublicKey,
+      isSandbox,
+    });
+  } else {
+    console.log('[alipay] 配置完整, appId:', appId, 'sandbox:', isSandbox);
+  }
 
   return {
     appId,
@@ -20,7 +40,8 @@ function getConfig() {
       : 'https://openapi.alipay.com/gateway.do',
     signType: 'RSA2',
     charset: 'utf-8',
-    isConfigured: !!(appId && privateKey && alipayPublicKey),
+    isConfigured,
+    isSandbox,
   };
 }
 
@@ -53,17 +74,15 @@ export function generateOrderId(): string {
 // ========== RSA2 签名 ==========
 
 function sign(content: string, privateKey: string): string {
-  // 动态引入crypto，确保Node.js运行时兼容
-  const crypto = require('crypto');
   const signObj = crypto.createSign('RSA-SHA256');
   signObj.update(content, 'utf8');
-  
+
   // 格式化私钥
   let formattedKey = privateKey;
   if (!formattedKey.includes('-----')) {
     formattedKey = `-----BEGIN PRIVATE KEY-----\n${formattedKey}\n-----END PRIVATE KEY-----`;
   }
-  
+
   return signObj.sign(formattedKey, 'base64');
 }
 
@@ -71,19 +90,18 @@ function sign(content: string, privateKey: string): string {
 
 function verify(content: string, signStr: string, publicKey: string): boolean {
   try {
-    const crypto = require('crypto');
     const verifyObj = crypto.createVerify('RSA-SHA256');
     verifyObj.update(content, 'utf8');
-    
+
     // 格式化公钥
     let formattedKey = publicKey;
     if (!formattedKey.includes('-----')) {
       formattedKey = `-----BEGIN PUBLIC KEY-----\n${formattedKey}\n-----END PUBLIC KEY-----`;
     }
-    
+
     return verifyObj.verify(formattedKey, signStr, 'base64');
   } catch (err) {
-    console.error('Verify sign error:', err);
+    console.error('[alipay] Verify sign error:', err);
     return false;
   }
 }
@@ -95,7 +113,7 @@ function buildSignContent(params: Record<string, string>): string {
   const sortedKeys = Object.keys(params)
     .filter(key => key !== 'sign' && key !== 'sign_type' && params[key] !== '')
     .sort();
-  
+
   return sortedKeys.map(key => `${key}=${params[key]}`).join('&');
 }
 
@@ -110,7 +128,7 @@ export async function createPagePayUrl(params: {
 }): Promise<string | null> {
   const config = getConfig();
   if (!config.isConfigured) {
-    console.warn('支付宝配置不完整，支付功能不可用');
+    console.warn('[alipay] 支付宝配置不完整，无法生成支付链接');
     return null;
   }
 
@@ -137,6 +155,8 @@ export async function createPagePayUrl(params: {
 
     // 签名
     const signContent = buildSignContent(systemParams);
+    console.log('[alipay] Signing content length:', signContent.length);
+
     const signStr = sign(signContent, config.privateKey!);
     systemParams.sign = signStr;
 
@@ -145,9 +165,11 @@ export async function createPagePayUrl(params: {
       .map(key => `${key}=${encodeURIComponent(systemParams[key])}`)
       .join('&');
 
-    return `${config.gateway}?${qs}`;
+    const payUrl = `${config.gateway}?${qs}`;
+    console.log('[alipay] Pay URL generated successfully, length:', payUrl.length);
+    return payUrl;
   } catch (error) {
-    console.error('Create pay URL error:', error);
+    console.error('[alipay] Create pay URL error:', error);
     return null;
   }
 }
@@ -170,4 +192,14 @@ export async function verifyNotifySign(params: Record<string, string>): Promise<
 function formatDate(date: Date): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+// ========== 检查支付宝是否已配置（供前端API调用判断） ==========
+
+export function isAlipayConfigured(): boolean {
+  return getConfig().isConfigured;
+}
+
+export function isAlipaySandbox(): boolean {
+  return getConfig().isSandbox;
 }

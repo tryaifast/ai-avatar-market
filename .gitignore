@@ -45,3 +45,5 @@ data/
 # Temp scripts (may contain secrets)
 *.ps1
 build_output.txt
+build-output.txt
+gen_keys.py

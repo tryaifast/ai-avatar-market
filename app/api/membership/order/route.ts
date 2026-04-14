@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DB } from '@/lib/db/supabase';
 import { verifyAuth } from '@/lib/auth';
-import { createPagePayUrl, MEMBERSHIP_AMOUNT, MEMBERSHIP_NAMES, generateOrderId } from '@/lib/alipay';
+import { createPagePayUrl, MEMBERSHIP_AMOUNT, MEMBERSHIP_NAMES, generateOrderId, isAlipayConfigured, isAlipaySandbox } from '@/lib/alipay';
 import { MEMBERSHIP_PRICES } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
     const amountYuan = MEMBERSHIP_AMOUNT[type]; // 单位：元
     const orderNo = generateOrderId(); // MEM... 格式的订单号，用于支付宝 out_trade_no
 
+    // 先检查支付宝配置状态
+    const alipayReady = isAlipayConfigured();
+    const sandbox = isAlipaySandbox();
+    console.log('[membership/order] Alipay status:', { alipayReady, sandbox });
+
     // 创建待支付订单
     // id 列为 UUID 类型，由数据库 gen_random_uuid() 自动生成
     // order_no 存储 MEM 格式字符串，用于支付宝 out_trade_no
@@ -74,7 +79,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: '创建订单失败: ' + (orderError.message || '未知错误') }, { status: 500 });
     }
 
-    console.log('[membership/order] Order created successfully, id:', order?.id);
+    console.log('[membership/order] Order created successfully, id:', order?.id, 'orderNo:', orderNo);
 
     // 用数据库生成的 UUID 作为内部 id，用 order_no 作为支付宝订单号
     const orderId = order.id; // UUID
@@ -82,23 +87,9 @@ export async function POST(req: NextRequest) {
     // 获取站点域名用于回调
     const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-avatar-market.vercel.app';
 
-    // 获取支付宝支付链接（out_trade_no 使用 order_no）
-    let payUrl: string | null = null;
-    try {
-      payUrl = await createPagePayUrl({
-        orderId: orderNo,
-        amount: amountYuan,
-        subject: MEMBERSHIP_NAMES[type],
-        notifyUrl: `${host}/api/membership/notify`,
-        returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
-      });
-    } catch (error) {
-      console.error('Create pay URL error:', error);
-      // 支付宝签名失败，仍然返回订单信息
-    }
-
-    if (!payUrl) {
-      // 支付宝未配置或调用失败，返回订单信息
+    // 如果支付宝未配置，直接返回订单信息 + 提示
+    if (!alipayReady) {
+      console.warn('[membership/order] Alipay not configured, returning order without payUrl');
       return NextResponse.json({
         success: true,
         order: {
@@ -110,7 +101,42 @@ export async function POST(req: NextRequest) {
           status: 'pending',
         },
         payUrl: null,
+        alipayReady: false,
         message: '支付功能暂未开通，请联系客服完成支付',
+      });
+    }
+
+    // 获取支付宝支付链接（out_trade_no 使用 order_no）
+    let payUrl: string | null = null;
+    try {
+      payUrl = await createPagePayUrl({
+        orderId: orderNo,
+        amount: amountYuan,
+        subject: MEMBERSHIP_NAMES[type],
+        notifyUrl: `${host}/api/membership/notify`,
+        returnUrl: `${host}/creator/membership?payResult=success&orderId=${orderId}`,
+      });
+      console.log('[membership/order] payUrl generated:', payUrl ? 'SUCCESS' : 'NULL');
+    } catch (error) {
+      console.error('[membership/order] Create pay URL error:', error);
+      // 支付宝签名失败，仍然返回订单信息
+    }
+
+    if (!payUrl) {
+      // 支付宝签名失败
+      return NextResponse.json({
+        success: true,
+        order: {
+          id: orderId,
+          orderNo,
+          type,
+          amount,
+          amountYuan,
+          status: 'pending',
+        },
+        payUrl: null,
+        alipayReady: true,
+        message: '支付宝签名失败，请稍后重试或联系客服',
       });
     }
 
@@ -125,6 +151,7 @@ export async function POST(req: NextRequest) {
         status: 'pending',
       },
       payUrl,
+      sandbox,
     });
   } catch (error: any) {
     console.error('Membership order error:', error);

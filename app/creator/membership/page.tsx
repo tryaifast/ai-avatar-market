@@ -107,11 +107,20 @@ export default function MembershipPage() {
       }
 
       if (data.success && !data.payUrl) {
-        // 支付宝未配置
-        setMessage({ 
-          type: 'error', 
-          text: data.message || '支付功能暂未开通，请联系客服' 
-        });
+        // 支付宝未配置或签名失败
+        if (data.alipayReady === false) {
+          // 支付宝环境变量未配置
+          setMessage({ 
+            type: 'error', 
+            text: '支付功能暂未开通，请联系客服完成支付' 
+          });
+        } else {
+          // 支付宝已配置但签名失败
+          setMessage({ 
+            type: 'error', 
+            text: data.message || '支付链接生成失败，请稍后重试' 
+          });
+        }
       } else {
         setMessage({ type: 'error', text: data.error || '创建订单失败' });
       }
