@@ -682,6 +682,38 @@ Bug2: 管理后台授予会员不生效
 - ✅ Vercel debug API 确认签名成功（signResult.success: true, signatureLength: 344）
 - 待用户端到端测试支付宝沙箱支付流程
 
+### Phase 24 (04-14): 支付宝invalid-signature修复（return_url参数问题）
+
+**需求**：
+1. Phase 23修复PEM格式后签名能生成，但支付宝验签报`invalid-signature`
+2. 支付宝返回验签字符串中多了`orderId=3de0ee79-221c-450d-9054-00cc33bfec0c`这个独立参数
+
+**根因分析**：
+- `return_url`值是`https://ai-avatar-market.vercel.app/creator/membership?payResult=success&orderId=3de0ee79-221c-450d-9054-00cc33bfec0c`
+- 支付宝解码URL参数后，按`&`分割，把`orderId=xxx`当成独立参数参与验签
+- 但我们签名时`return_url`值是完整的（orderId是return_url的一部分）
+- 签名字符串不一致 → `invalid-signature`
+
+**修改**：
+
+1. `lib/alipay.ts` — createPagePayUrl新增passbackParams
+   - 新增`passbackParams`参数，传入`biz_content.passback_params`
+   - return_url注释强调：不能包含`&`查询参数
+   - 支付宝同步跳转时passback_params原样回传
+
+2. `app/api/membership/order/route.ts` — 简化return_url
+   - `returnUrl`从`?payResult=success&orderId=xxx`改为纯路径`/creator/membership`
+   - orderId通过`passbackParams`传递
+
+3. `app/creator/membership/page.tsx` — 适配新回调参数
+   - 从`passback_params`获取orderId（支付宝同步跳转回传）
+   - 新增`refreshUserAfterPay()`备用方案（无orderId时直接刷新用户信息）
+
+**教训**：
+- **支付宝return_url不能含&查询参数** — 支付宝解码URL后按`&`分割参数，return_url中的`&`会导致参数混淆
+- **额外参数用passback_params** — 通过`biz_content.passback_params`传递自定义参数，支付完成后原样回传
+- **passback_params仅同步通知回传** — 不在异步通知(notify_url)中回传，异步通知需用out_trade_no查询
+
 **需求**：
 1. 会员中心点击开通返回500错误，支付宝无法拉起支付
 2. 管理后台无法查看/授予/取消用户会员身份
