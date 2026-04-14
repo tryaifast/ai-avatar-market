@@ -1,7 +1,9 @@
 // 临时调试API - 详细签名对比
 import 'server-only';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+
+export const dynamic = 'force-dynamic';
 
 function formatPEM(key: string, type: 'PRIVATE KEY' | 'PUBLIC KEY'): string {
   if (key.includes('-----BEGIN')) return key;
@@ -26,10 +28,9 @@ function buildSignContent(params: Record<string, string>): string {
   return sortedKeys.map(key => `${key}=${params[key]}`).join('&');
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const alipaySignContent = url.searchParams.get('alipay');
+    const alipaySignContent = req.nextUrl.searchParams.get('alipay');
     
     const appId = process.env.ALIPAY_APP_ID || '9021000158653306';
     const privateKeyRaw = process.env.ALIPAY_PRIVATE_KEY || '';
