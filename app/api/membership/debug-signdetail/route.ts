@@ -1,6 +1,7 @@
-// 临时调试API - 详细签名对比 + 直接请求支付宝验证
+// 终极调试API - 端到端签名验证测试
+// 用和 alipay.ts 完全相同的逻辑签名，然后直接请求支付宝看返回
 import 'server-only';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +23,9 @@ function formatPEM(key: string, type: 'PRIVATE KEY' | 'PUBLIC KEY'): string {
 }
 
 function buildSignContent(params: Record<string, string>): string {
+  // 和 alipay.ts 完全相同的逻辑
   const sortedKeys = Object.keys(params)
-    .filter(key => key !== 'sign' && key !== 'sign_type' && params[key] !== '')
+    .filter(key => key !== 'sign' && params[key] !== '')
     .sort();
   return sortedKeys.map(key => `${key}=${params[key]}`).join('&');
 }

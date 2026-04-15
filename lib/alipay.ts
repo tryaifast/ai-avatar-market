@@ -149,9 +149,11 @@ function verify(content: string, signStr: string, publicKey: string): boolean {
 // ========== 构建待签名字符串 ==========
 
 function buildSignContent(params: Record<string, string>): string {
-  // 按key排序，排除sign和sign_type，拼接为 key=value&key=value
+  // 按key排序，排除sign，拼接为 key=value&key=value
+  // ⚠️ 新版支付宝沙箱验签时包含 sign_type，所以 sign_type 不能排除！
+  // 旧版文档说排除 sign_type，但新版沙箱验签字符串包含它，不排除才能匹配
   const sortedKeys = Object.keys(params)
-    .filter(key => key !== 'sign' && key !== 'sign_type' && params[key] !== '')
+    .filter(key => key !== 'sign' && params[key] !== '')
     .sort();
 
   return sortedKeys.map(key => `${key}=${params[key]}`).join('&');
