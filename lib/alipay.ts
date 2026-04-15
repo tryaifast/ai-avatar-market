@@ -59,7 +59,7 @@ export const MEMBERSHIP_NAMES: Record<string, string> = {
 
 // ========== 订单号生成 ==========
 
-export function generateOrderId(): string {
+export function generateOrderId(prefix: string = 'MEM'): string {
   const now = new Date();
   const timestamp = now.getFullYear().toString() +
     (now.getMonth() + 1).toString().padStart(2, '0') +
@@ -68,7 +68,7 @@ export function generateOrderId(): string {
     now.getMinutes().toString().padStart(2, '0') +
     now.getSeconds().toString().padStart(2, '0');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `MEM${timestamp}${random}`;
+  return `${prefix}${timestamp}${random}`;
 }
 
 // ========== PEM 密钥格式化 ==========

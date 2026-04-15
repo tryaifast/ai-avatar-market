@@ -1,20 +1,122 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useAvatarStore } from '@/lib/store';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAvatarStore, authFetch, useAuthStore } from '@/lib/store';
 
-// 雇佣确认页面 - 客户端组件
+// 雇佣确认页面 - 真实支付流程
 export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
   const { currentAvatar, fetchAvatarById, isLoading } = useAvatarStore();
+  const token = useAuthStore((s) => s.token);
   const [plan, setPlan] = useState<'hourly' | 'fixed'>('hourly');
   const [hours, setHours] = useState(2);
   const [duration, setDuration] = useState('1周');
   const [requirements, setRequirements] = useState('');
 
+  // 支付状态
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [payResult, setPayResult] = useState<'idle' | 'paying' | 'success' | 'failed'>('idle');
+  const [orderNo, setOrderNo] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     fetchAvatarById(avatarId);
   }, [avatarId, fetchAvatarById]);
+
+  // 支付宝跳转回来后，URL 带有 out_trade_no 参数
+  // 开始轮询支付结果
+  useEffect(() => {
+    const outTradeNo = searchParams.get('out_trade_no');
+    if (outTradeNo && token) {
+      setOrderNo(outTradeNo);
+      setPayResult('paying');
+      pollPayResult(outTradeNo);
+    }
+  }, [searchParams, token]);
+
+  // 轮询支付结果
+  const pollPayResult = useCallback(async (no: string) => {
+    let attempts = 0;
+    const maxAttempts = 30; // 最多轮询30次，约30秒
+
+    const poll = async () => {
+      if (attempts >= maxAttempts) {
+        setPayResult('failed');
+        setErrorMsg('支付结果查询超时，请稍后在订单列表中查看');
+        return;
+      }
+
+      attempts++;
+      try {
+        const res = await authFetch(`/api/hire/pay-result?orderNo=${no}`);
+        const data = await res.json();
+
+        if (data.success && data.order.status === 'paid') {
+          setPayResult('success');
+          return;
+        }
+      } catch (err) {
+        console.error('Poll pay result error:', err);
+      }
+
+      // 1秒后重试
+      setTimeout(poll, 1000);
+    };
+
+    poll();
+  }, []);
+
+  // 确认并支付
+  const handleConfirmAndPay = async () => {
+    if (!token) {
+      setErrorMsg('请先登录');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg('');
+
+    try {
+      const res = await authFetch('/api/hire/order', {
+        method: 'POST',
+        body: JSON.stringify({
+          avatarId,
+          planType: plan,
+          hours: plan === 'hourly' ? hours : undefined,
+          duration: plan === 'fixed' ? duration : undefined,
+          requirements,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setErrorMsg(data.error || '创建订单失败');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 保存订单号
+      setOrderNo(data.order.orderNo);
+
+      if (data.payUrl) {
+        // 跳转到支付宝支付页面
+        window.location.href = data.payUrl;
+      } else {
+        // 支付链接生成失败
+        setErrorMsg(data.message || '支付链接生成失败，请稍后重试');
+        setIsSubmitting(false);
+      }
+    } catch (err: any) {
+      console.error('Confirm and pay error:', err);
+      setErrorMsg('网络错误，请稍后重试');
+      setIsSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -37,10 +139,70 @@ export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
     );
   }
 
+  // 支付成功页面
+  if (payResult === 'success') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="card max-w-md w-full mx-4 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <span className="text-4xl">✓</span>
+          </div>
+          <h1 className="text-2xl font-bold mb-2">支付成功！</h1>
+          <p className="text-gray-600 mb-2">
+            您的雇佣订单已确认，AI分身将尽快开始为您服务
+          </p>
+          <p className="text-sm text-gray-500 mb-6">
+            订单号：{orderNo}
+          </p>
+          <div className="space-y-3">
+            <Link href="/client/workspace">
+              <button className="btn btn-primary w-full">
+                进入项目工作区
+              </button>
+            </Link>
+            <Link href="/client/market">
+              <button className="btn w-full">
+                返回市场
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 支付轮询中
+  if (payResult === 'paying') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="card max-w-md w-full mx-4 text-center">
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+          </div>
+          <h1 className="text-2xl font-bold mb-2">确认支付中...</h1>
+          <p className="text-gray-600 mb-6">
+            正在查询支付结果，请稍候
+          </p>
+          <button
+            onClick={() => {
+              setPayResult('idle');
+              setErrorMsg('');
+            }}
+            className="btn w-full"
+          >
+            返回
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const avatar = currentAvatar;
   const hourlyPrice = (avatar as any).pricePerHour || (avatar as any).pricing?.perTask?.min || 200;
   const fixedPrice = (avatar as any).pricePerTask || (avatar as any).pricing?.subscription?.monthly || 5000;
-  const totalAmount = plan === 'hourly' ? hourlyPrice * hours : fixedPrice;
+  const baseAmount = plan === 'hourly' ? hourlyPrice * hours : fixedPrice;
+  const platformFee = Math.round(baseAmount * 0.1);
+  const totalAmount = baseAmount + platformFee;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -195,8 +357,12 @@ export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
                   <span>{plan === 'hourly' ? `${hours} 小时` : duration}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-gray-600">基础金额</span>
+                  <span>¥{baseAmount}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-gray-600">平台服务费 (10%)</span>
-                  <span>¥{Math.round(totalAmount * 0.1)}</span>
+                  <span>¥{platformFee}</span>
                 </div>
               </div>
               
@@ -204,16 +370,31 @@ export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">总计</span>
                   <span className="text-2xl font-bold text-blue-600">
-                    ¥{Math.round(totalAmount * 1.1)}
+                    ¥{totalAmount}
                   </span>
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+                  {errorMsg}
+                </div>
+              )}
               
-              <Link href={`/client/payment?avatar=${avatarId}&plan=${plan}&amount=${Math.round(totalAmount * 1.1)}`}>
-                <button className="btn btn-primary w-full mb-3">
-                  确认并支付
-                </button>
-              </Link>
+              <button
+                onClick={handleConfirmAndPay}
+                disabled={isSubmitting}
+                className="btn btn-primary w-full mb-3"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    创建订单中...
+                  </span>
+                ) : (
+                  '确认并支付'
+                )}
+              </button>
               
               <p className="text-xs text-gray-500 text-center">
                 点击确认即表示同意平台服务协议
