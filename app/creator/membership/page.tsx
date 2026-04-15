@@ -40,23 +40,21 @@ export default function MembershipPage() {
 
   // 处理支付宝支付结果回调
   useEffect(() => {
-    // 支付宝同步跳转时，会附加 out_trade_no, trade_no, sign 等参数
-    // 我们的 orderId 通过 passback_params 原样回传
+    // 支付宝同步跳转时，return_url 会附加 out_trade_no 等参数
+    // 不使用 passback_params（会导致支付宝沙箱验签失败 invalid-signature）
     const outTradeNo = searchParams.get('out_trade_no');
-    const passbackParams = searchParams.get('passback_params'); // 这是我们传的 orderId (UUID)
     
-    if (outTradeNo || passbackParams) {
-      const orderId = passbackParams || ''; // 优先用 passback_params 中的 orderId
+    if (outTradeNo) {
+      // 有 out_trade_no，通过订单号轮询支付结果
       setMessage({ type: 'info', text: '正在确认支付结果...' });
       setPolling(true);
-      
-      if (orderId) {
-        setPendingOrder({ id: orderId, type: '', amountYuan: '' });
-        pollPayResult(orderId);
-      } else {
-        // 没有 orderId，直接刷新用户信息
-        refreshUserAfterPay();
-      }
+      pollPayResultByOrderNo(outTradeNo);
+    } else if (searchParams.toString()) {
+      // 有其他参数（可能是支付宝跳转回来但没带 out_trade_no）
+      // 直接刷新用户信息确认会员状态
+      setMessage({ type: 'info', text: '正在确认支付结果...' });
+      setPolling(true);
+      refreshUserAfterPay();
     }
   }, [searchParams]);
 
@@ -78,11 +76,12 @@ export default function MembershipPage() {
     setPolling(false);
   }, [setUser]);
 
-  // 轮询支付结果
-  const pollPayResult = useCallback(async (orderId: string, maxRetries = 10) => {
+  // 通过 out_trade_no 轮询支付结果
+  const pollPayResultByOrderNo = useCallback(async (orderNo: string, maxRetries = 10) => {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        const res = await authFetch(`/api/membership/pay-result?orderId=${orderId}`);
+        // 用 out_trade_no 查询订单状态
+        const res = await authFetch(`/api/membership/pay-result?orderNo=${orderNo}`);
         const data = await res.json();
         
         if (data.success && data.order?.status === 'paid') {

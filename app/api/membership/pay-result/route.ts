@@ -1,6 +1,7 @@
 // ============================================
 // 支付结果查询 API
-// GET /api/membership/pay-result?orderId=xxx - 前端轮询支付结果
+// GET /api/membership/pay-result?orderId=xxx&orderNo=xxx - 前端轮询支付结果
+// orderId: UUID 内部ID / orderNo: MEM格式订单号（支付宝 out_trade_no）
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,33 +17,31 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get('orderId');
+    const orderNo = searchParams.get('orderNo');
 
-    if (!orderId) {
+    if (!orderId && !orderNo) {
       return NextResponse.json({ error: '缺少订单号' }, { status: 400 });
     }
 
-    // 查询订单（orderId 可能是 UUID 或 order_no，优先用 id 查，查不到再用 order_no）
+    // 查询订单
     let order: any = null;
-    let orderError: any = null;
 
-    // 先尝试用 id (UUID) 查询
-    const { data: orderById, error: errById } = await (DB.db.from('membership_orders') as any)
-      .select('*')
-      .eq('id', orderId)
-      .eq('user_id', auth.userId)
-      .single();
-
-    if (orderById) {
-      order = orderById;
-    } else {
-      // 再用 order_no 查询
+    if (orderNo) {
+      // 优先用 order_no (MEM格式) 查询 — 支付宝回调时使用
       const { data: orderByNo, error: errByNo } = await (DB.db.from('membership_orders') as any)
         .select('*')
-        .eq('order_no', orderId)
+        .eq('order_no', orderNo)
         .eq('user_id', auth.userId)
         .single();
       order = orderByNo;
-      orderError = errByNo;
+    } else if (orderId) {
+      // 用 id (UUID) 查询
+      const { data: orderById, error: errById } = await (DB.db.from('membership_orders') as any)
+        .select('*')
+        .eq('id', orderId)
+        .eq('user_id', auth.userId)
+        .single();
+      order = orderById;
     }
 
     if (!order) {

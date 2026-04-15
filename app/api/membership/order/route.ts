@@ -115,11 +115,9 @@ export async function POST(req: NextRequest) {
         subject: MEMBERSHIP_NAMES[type],
         notifyUrl: `${host}/api/membership/notify`,
         // ⚠️ return_url 不能包含 & 查询参数！
-        // 支付宝解码URL后会把 &orderId=... 当成独立参数参与验签，
-        // 导致签名不一致 → invalid-signature
-        // orderId 通过 passback_params 传递，支付成功后原样回传
+        // 支付宝解码URL后会把 &xxx=... 当成独立参数参与验签，导致签名不一致
+        // 不使用 passback_params，支付成功后通过 out_trade_no 查询订单
         returnUrl: `${host}/creator/membership`,
-        passbackParams: orderId, // 传递 UUID orderId，支付宝同步通知时原样回传
       });
       console.log('[membership/order] payUrl generated:', payUrl ? 'SUCCESS' : 'NULL');
     } catch (error: any) {
