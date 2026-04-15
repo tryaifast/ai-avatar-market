@@ -1,4 +1,4 @@
-// 临时调试API - 详细签名对比
+// 临时调试API - 详细签名对比 + 直接请求支付宝验证
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
@@ -28,21 +28,41 @@ function buildSignContent(params: Record<string, string>): string {
   return sortedKeys.map(key => `${key}=${params[key]}`).join('&');
 }
 
-export async function GET(req: NextRequest) {
+function formatDate(date: Date): string {
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+export async function GET() {
   try {
-    const alipaySignContent = req.nextUrl.searchParams.get('alipay');
-    
-    const appId = process.env.ALIPAY_APP_ID || '9021000158653306';
+    const appId = process.env.ALIPAY_APP_ID || '';
     const privateKeyRaw = process.env.ALIPAY_PRIVATE_KEY || '';
+    const alipayPublicKeyRaw = process.env.ALIPAY_PUBLIC_KEY || '';
+    const isSandbox = process.env.ALIPAY_SANDBOX === 'true';
     const host = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-avatar-market.vercel.app';
 
-    // 重建和实际支付相同的参数
+    if (!appId || !privateKeyRaw) {
+      return NextResponse.json({ error: '配置不完整' });
+    }
+
+    // 1. 从私钥推导应用公钥
+    const privateKeyPEM = formatPEM(privateKeyRaw, 'PRIVATE KEY');
+    let derivedPublicKeyBase64 = '';
+    try {
+      const keyObj = crypto.createPrivateKey(privateKeyPEM);
+      const pubKeyObj = crypto.createPublicKey(keyObj);
+      const derivedPubPEM = pubKeyObj.export({ type: 'spki', format: 'pem' }).toString();
+      derivedPublicKeyBase64 = derivedPubPEM.replace(/-----BEGIN PUBLIC KEY-----/, '').replace(/-----END PUBLIC KEY-----/, '').replace(/\s+/g, '');
+    } catch (err: any) {
+      return NextResponse.json({ error: '私钥格式错误: ' + err.message });
+    }
+
+    // 2. 构建签名（和 alipay.ts 完全一样的逻辑）
     const bizContentObj = {
-      out_trade_no: 'MEM202604141023165552',
-      total_amount: '99.00',
-      subject: 'AI分身市场-终身会员',
+      out_trade_no: 'DEBUG' + Date.now(),
+      total_amount: '0.01',
+      subject: '调试测试订单',
       product_code: 'FAST_INSTANT_TRADE_PAY',
-      passback_params: 'df15bb46-cf26-4f26-8efa-f025926d423b',
     };
 
     const systemParams: Record<string, string> = {
@@ -50,7 +70,7 @@ export async function GET(req: NextRequest) {
       method: 'alipay.trade.page.pay',
       charset: 'utf-8',
       sign_type: 'RSA2',
-      timestamp: '2026-04-14 10:23:16',
+      timestamp: formatDate(new Date()),
       version: '1.0',
       notify_url: `${host}/api/membership/notify`,
       return_url: `${host}/creator/membership`,
@@ -58,49 +78,74 @@ export async function GET(req: NextRequest) {
     };
 
     const signContent = buildSignContent(systemParams);
-    const privateKeyPEM = formatPEM(privateKeyRaw, 'PRIVATE KEY');
-
-    // 生成签名
     const signObj = crypto.createSign('RSA-SHA256');
     signObj.update(signContent, 'utf8');
     const signature = signObj.sign(privateKeyPEM, 'base64');
 
-    // URL编码后的签名
-    const signatureUrlEncoded = encodeURIComponent(signature);
+    // 3. 构建完整支付URL
+    systemParams.sign = signature;
+    const gateway = isSandbox
+      ? 'https://openapi-sandbox.dl.alipaydev.com/gateway.do'
+      : 'https://openapi.alipay.com/gateway.do';
+
+    const qs = Object.keys(systemParams)
+      .map(key => `${key}=${encodeURIComponent(systemParams[key])}`)
+      .join('&');
+    const payUrl = `${gateway}?${qs}`;
+
+    // 4. 直接请求支付宝
+    let alipayResult: any = null;
+    try {
+      const resp = await fetch(payUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        headers: { 'Accept': 'text/html' },
+      });
+      const body = await resp.text();
+      alipayResult = {
+        status: resp.status,
+        bodyLength: body.length,
+        bodyPreview: body.substring(0, 500),
+        isAlipaySignError: body.includes('invalid-signature') || body.includes('验签出错'),
+      };
+    } catch (err: any) {
+      alipayResult = { fetchError: err.message };
+    }
+
+    // 5. 用推导出的应用公钥自验签
+    const derivedPubPEM2 = formatPEM(derivedPublicKeyBase64, 'PUBLIC KEY');
+    const verifyObj = crypto.createVerify('RSA-SHA256');
+    verifyObj.update(signContent, 'utf8');
+    const selfVerify = verifyObj.verify(derivedPubPEM2, signature, 'base64');
+
+    // 6. 用支付宝公钥验签（不应该能验签，因为不是同一对密钥）
+    const alipayPublicKeyPEM = formatPEM(alipayPublicKeyRaw, 'PUBLIC KEY');
+    const verifyObj2 = crypto.createVerify('RSA-SHA256');
+    verifyObj2.update(signContent, 'utf8');
+    let alipayCanVerify = false;
+    try {
+      alipayCanVerify = verifyObj2.verify(alipayPublicKeyPEM, signature, 'base64');
+    } catch {}
 
     return NextResponse.json({
-      // 我们的签名内容
-      ourSignContent: signContent,
-      ourSignContentLength: signContent.length,
-      
-      // 支付宝提供的验签字符串（用户传入）
-      alipaySignContent: alipaySignContent || '未提供，请在URL中添加 ?alipay=xxx',
-      alipaySignContentLength: alipaySignContent?.length || 0,
-      
-      // 对比
-      contentMatch: alipaySignContent === signContent,
-      
-      // 我们的签名
-      ourSignature: signature,
-      ourSignatureUrlEncoded: signatureUrlEncoded,
-      
-      // 关键参数检查
-      params: {
-        app_id: systemParams.app_id,
-        method: systemParams.method,
-        charset: systemParams.charset,
-        timestamp: systemParams.timestamp,
-        version: systemParams.version,
-        notify_url: systemParams.notify_url,
-        return_url: systemParams.return_url,
-        biz_content: systemParams.biz_content,
+      step1_sign: {
+        signContentLength: signContent.length,
+        signatureLength: signature.length,
+        signContentPreview: signContent.substring(0, 200),
       },
-      
-      // 构建完整URL（用于测试）
-      fullUrl: `https://openapi-sandbox.dl.alipaydev.com/gateway.do?${Object.entries({
-        ...systemParams,
-        sign: signature,
-      }).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')}`,
+      step2_selfVerify: {
+        selfVerifyWithDerivedPub: selfVerify,
+        alipayPubCanVerifyOurSign: alipayCanVerify,
+      },
+      step3_alipayResponse: alipayResult,
+      step4_keys: {
+        privateKeyFirst10: privateKeyRaw.replace(/\s/g, '').substring(0, 10),
+        alipayPublicKeyFirst10: alipayPublicKeyRaw.replace(/\s/g, '').substring(0, 10),
+        derivedAppPublicKeyFirst60: derivedPublicKeyBase64.substring(0, 60),
+        keysAreSamePair: derivedPublicKeyBase64 === alipayPublicKeyRaw.replace(/\s/g, ''),
+      },
+      // 推导出的完整应用公钥（必须和沙箱控制台配置的一致）
+      derivedAppPublicKeyFull: derivedPublicKeyBase64,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message });
