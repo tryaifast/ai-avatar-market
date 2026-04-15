@@ -682,6 +682,44 @@ Bug2: 管理后台授予会员不生效
 - ✅ Vercel debug API 确认签名成功（signResult.success: true, signatureLength: 344）
 - 待用户端到端测试支付宝沙箱支付流程
 
+### Phase 25 (04-15): 支付宝invalid-signature终极修复（passback_params问题）
+
+**需求**：
+1. Phase 24修复return_url参数后，仍然报`invalid-signature`
+2. 通过Vercel debug API对比测试发现：**不带passback_params时签名通过（302），带passback_params时签名失败**
+
+**根因分析**：
+- `biz_content.passback_params`导致支付宝沙箱验签字符串与我们签名时的字符串不一致
+- 具体原因可能是：支付宝沙箱对`passback_params`的URL编码/解码处理和标准文档不一致
+- 经过3轮debug API对比测试（不带passback / 带passback / 编码passback），确认只有"不带passback_params"能通过
+
+**修改**：
+
+1. `lib/alipay.ts` — createPagePayUrl去掉passbackParams
+   - 移除`passbackParams`参数
+   - `biz_content`不再包含`passback_params`字段
+   - 支付成功后通过`out_trade_no`查询订单状态即可
+
+2. `app/api/membership/order/route.ts` — 不再传passbackParams
+   - `createPagePayUrl()`调用移除`passbackParams`参数
+   - 订单ID通过`out_trade_no`（orderNo）查询，不需要passback
+
+3. `app/creator/membership/page.tsx` — 回调改为查订单/刷新用户
+   - 移除对`passback_params`的读取
+   - 支付宝同步跳转回来后，检测`out_trade_no`查询最新pending订单
+   - 无`out_trade_no`时直接刷新用户信息（`refreshUserAfterPay()`）
+
+4. `app/api/membership/pay-result/route.ts` — 支持按orderNo查询
+   - 新增`orderNo`参数查询（支付宝同步跳转带回`out_trade_no`）
+   - 保留原有`orderId`参数查询（兼容旧逻辑）
+
+5. 删除`app/api/membership/debug-signdetail/route.ts`（调试完毕）
+
+**教训**：
+- **支付宝沙箱passback_params导致invalid-signature** — 在支付宝沙箱环境中，`biz_content.passback_params`会导致验签失败，原因未完全确认（可能是沙箱对passback_params的URL编码/解码处理和正式环境不一致）
+- **能用out_trade_no查询就不要用passback_params** — `out_trade_no`就是我们自己的订单号，支付完成后用它查询订单状态更可靠
+- **debug API对比测试是解决签名问题的有效方法** — 通过A/B对比（带/不带某个参数），快速定位问题参数
+
 ### Phase 24 (04-14): 支付宝invalid-signature修复（return_url参数问题）
 
 **需求**：
