@@ -1,6 +1,6 @@
 # AI Avatar Market - 项目进度报告
 
-> 最近更新: 2026-04-14
+> 最近更新: 2026-04-16
 > 应用方法论: Superpowers + DeerFlow
 
 ---
@@ -499,7 +499,7 @@ ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS portfolio_url TEXT;
 | AI分身市场 | ✅ 已上线 | 浏览/搜索/筛选 |
 | AI分身创建 | ✅ 已上线 | 创作者创建分身 |
 | AI对话 | ✅ 已上线 | Kimi/阿里云百炼 |
-| 雇佣流程 | ✅ 已上线 | 确认/支付模拟 |
+| 雇佣流程 | ✅ 已上线 | 确认/支付宝支付/自动创建task(Phase 26) |
 | 工作区 | ✅ 已上线 | 任务管理 |
 | 创作者入驻 | ✅ 已上线 | 申请/审核（含工作经历） |
 | 管理后台 | ✅ 已上线 | Dashboard/分身/订单/审核/用户 |
@@ -719,6 +719,77 @@ Bug2: 管理后台授予会员不生效
 - **支付宝沙箱passback_params导致invalid-signature** — 在支付宝沙箱环境中，`biz_content.passback_params`会导致验签失败，原因未完全确认（可能是沙箱对passback_params的URL编码/解码处理和正式环境不一致）
 - **能用out_trade_no查询就不要用passback_params** — `out_trade_no`就是我们自己的订单号，支付完成后用它查询订单状态更可靠
 - **debug API对比测试是解决签名问题的有效方法** — 通过A/B对比（带/不带某个参数），快速定位问题参数
+
+### Phase 26 (04-15): 雇佣分身支付流程（创建订单+跳转支付宝+异步通知+自动创建task）
+
+**需求**：
+1. 雇佣分身没有真实支付流程（只有确认页）
+2. 需要自动创建 task + 通知创作者
+3. 保留聚合支付平台扩展能力
+
+**修改**：
+
+1. `supabase/migrations/phase26_hire_orders.sql` — **新建**
+   - `hire_orders` 表：id/order_no/client_id/avatar_id/creator_id/plan_type/hours/duration/requirements/amount/platform_fee/creator_earnings/status/trade_no/task_id
+   - 4个索引 + RLS策略（client/creator各自只能看自己的订单）
+   - ⚠️ 需要在 Supabase SQL Editor 执行建表
+
+2. `lib/payment.ts` — **新建** 支付抽象层
+   - `createPayment(params)` 统一入口，switch-case 按 provider 分发（当前只有 alipay）
+   - `verifyAndParseNotify(params)` 统一验签，自动检测 provider
+   - 预留扩展点：`// case 'aggregate':` 注释已写好，后续加聚合支付只需新增 case
+   - 导出 `generateOrderId/isAlipayConfigured/isAlipaySandbox` 工具函数
+
+3. `lib/alipay.ts` — `generateOrderId(prefix)` 增加前缀参数
+   - `generateOrderId('HIRE')` 生成 HIRE20260415... 格式订单号
+   - `generateOrderId('MEM')` 生成 MEM 格式（会员订单，继续兼容）
+
+4. `/api/hire/order` — POST创建雇佣订单 + 返回支付链接，GET查我的订单
+   - 10%平台服务费，creator_earnings = 基础金额
+   - 调用 `createPayment()` 获取支付链接
+   - 不能雇佣自己的分身
+
+5. `/api/hire/notify` — 支付宝异步通知回调
+   - `verifyAndParseNotify()` 验签
+   - 更新订单 status=paid + trade_no
+   - **自动创建 tasks**（payment_status=held，记录平台费和创作者收入）
+   - 关联 hire_orders.task_id
+   - 插入 notifications 通知创作者
+
+6. `/api/hire/pay-result` — 前端轮询支付结果
+   - 按 orderNo 查询，支持轮询
+   - 已支付时同时返回关联 task 信息
+
+7. `HireConfirmClient.tsx` — 完整重写
+   - idle：选择雇佣方案（按小时/按项目）+ 填写需求 + 订单摘要
+   - 点击「确认并支付」→ POST /api/hire/order → 跳转支付宝
+   - 支付宝跳转回来 → 轮询 pay-result → 显示成功/失败状态
+
+8. `HirePageClient.tsx` — 简化为展示页
+   - 显示分身信息 + 价格 → 「立即雇佣」跳转确认页
+   - 删除旧模拟支付页 /client/payment
+
+**支付流程**：
+```
+市场页 → 确认页(选方案) → POST /api/hire/order → 返回支付宝链接
+                                                          ↓
+                                          跳转支付宝支付页面
+                                                          ↓
+          支付宝异步通知 → POST /api/hire/notify → 更新订单paid + 自动创建task + 通知创作者
+                                                          ↓
+          支付宝同步跳转 → 确认页轮询 /api/hire/pay-result → 显示支付成功
+```
+
+### Phase 27 (04-16): 管理后台分身解封功能
+
+**需求**：分身被封禁后管理后台只有「上架」按钮，语义不清晰，且详情弹窗没有解封入口
+
+**修改**：`app/admin/avatars/page.tsx`
+- 列表操作栏：`banned` 状态独立显示「解封」按钮；`rejected` 状态显示「上架」按钮；封禁按钮只在 non-banned/non-rejected 时显示
+- 详情弹窗：同上，banned/rejected 分离处理
+- `statusLabel` 新增 `unbanned: '解封'`
+
+---
 
 ### Phase 24 (04-14): 支付宝invalid-signature修复（return_url参数问题）
 

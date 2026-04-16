@@ -101,7 +101,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const avatar = await DB.Avatar.create(data);
+    const avatar = await DB.Avatar.create({
+      ...data,
+      hourlyPrice: Math.round((data.hourlyPrice || 200) * 100),   // 元转分
+      fixedPrice: Math.round((data.fixedPrice || 5000) * 100),   // 元转分
+      tokenPrice: Math.round((data.tokenPrice || 5000) * 100),   // 元转分
+    });
 
     return NextResponse.json({
       success: true,

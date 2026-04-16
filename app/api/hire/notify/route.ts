@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
 
     if (order.plan_type === 'hourly') {
       taskTitle = `${avatarName} - 按小时服务 (${order.hours}小时)`;
+    } else if (order.plan_type === 'token') {
+      taskTitle = `${avatarName} - 按Token服务 (1百万Tokens)`;
     } else {
       taskTitle = `${avatarName} - 项目交付 (${order.duration || '待定'})`;
     }
@@ -87,7 +89,11 @@ export async function POST(req: NextRequest) {
       description: taskDesc,
       type: order.plan_type,
       price: order.creator_earnings, // 创作者收入（分）
-      pricing_type: order.plan_type === 'hourly' ? 'per_task' : 'subscription',
+      pricing_type: order.plan_type, // hourly / fixed / token
+      token_usage: 0,
+      api_cost: 0,
+      creator_earnings: 0,
+      token_budget: order.plan_type === 'token' ? 1000000 : null,
       status: 'pending',
       // 支付相关字段
       payment_status: 'held',       // 资金托管中

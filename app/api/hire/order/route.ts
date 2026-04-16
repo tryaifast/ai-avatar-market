@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (!avatarId) {
       return NextResponse.json({ error: '缺少分身ID' }, { status: 400 });
     }
-    if (!planType || !['hourly', 'fixed'].includes(planType)) {
+    if (!planType || !['hourly', 'fixed', 'token'].includes(planType)) {
       return NextResponse.json({ error: '无效的雇佣方式' }, { status: 400 });
     }
     if (planType === 'hourly' && (!hours || hours < 1)) {
@@ -56,15 +56,28 @@ export async function POST(req: NextRequest) {
     // 计算金额
     let baseAmount = 0; // 基础金额（分）
     let subject = '';
+    let taskPricingType = planType;
+    let taskPrice = 0;
+    let taskTokenBudget = 1000000;
+
+    const avatarHourlyPrice = (avatar as any).hourlyPrice || 20000;    // 分
+    const avatarFixedPrice = (avatar as any).fixedPrice || 500000;    // 分
+    const avatarTokenPrice = (avatar as any).tokenPrice || 500000;    // 分/百万tokens
 
     if (planType === 'hourly') {
-      const pricePerHour = (avatar as any).pricing?.perTask?.min || avatar.pricing?.perTask?.min || 200;
-      baseAmount = Math.round(pricePerHour * (hours || 1) * 100); // 元转分
-      subject = `雇佣${avatar.name}-按小时(${hours}小时)`;
-    } else {
-      const fixedPrice = (avatar as any).pricing?.subscription?.monthly || avatar.pricing?.subscription?.monthly || 5000;
-      baseAmount = Math.round(fixedPrice * 100); // 元转分
+      baseAmount = avatarHourlyPrice * (hours || 1);
+      taskPrice = baseAmount;
+      subject = `雇佣${avatar.name}-按小时(${hours || 1}小时)`;
+    } else if (planType === 'fixed') {
+      baseAmount = avatarFixedPrice;
+      taskPrice = baseAmount;
       subject = `雇佣${avatar.name}-按项目`;
+    } else if (planType === 'token') {
+      // token 计费：预收1百万token的费用
+      baseAmount = avatarTokenPrice;  // 每百万token的价格（分）
+      taskPrice = avatarTokenPrice;
+      taskTokenBudget = 1000000;
+      subject = `雇佣${avatar.name}-按Token(1百万Tokens)`;
     }
 
     const platformFee = Math.round(baseAmount * PLATFORM_FEE_RATE);

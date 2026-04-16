@@ -170,6 +170,9 @@ export const AvatarDB = {
       scope_cannot_do: avatar.scope?.cannotDo || [],
       scope_response_time: avatar.scope?.responseTime,
       status: avatar.status,
+      hourly_price: (avatar as any).hourlyPrice || 20000,    // 默认200元=20000分
+      fixed_price: (avatar as any).fixedPrice || 500000,    // 默认5000元=500000分
+      token_price: (avatar as any).tokenPrice || 500000,    // 默认5000元/百万tokens=500000分
     };
 
     const { data, error } = await db.from('avatars').insert(dbAvatar).select().single();
@@ -189,6 +192,9 @@ export const AvatarDB = {
       if (updates.personality.proactivity !== undefined) dbUpdates.personality_proactivity = updates.personality.proactivity;
       if (updates.personality.expertise !== undefined) dbUpdates.personality_expertise = updates.personality.expertise;
     }
+    if ((updates as any).hourlyPrice !== undefined) dbUpdates.hourly_price = (updates as any).hourlyPrice;
+    if ((updates as any).fixedPrice !== undefined) dbUpdates.fixed_price = (updates as any).fixedPrice;
+    if ((updates as any).tokenPrice !== undefined) dbUpdates.token_price = (updates as any).tokenPrice;
 
     const { data, error } = await db.from('avatars').update(dbUpdates).eq('id', id).select().single();
     if (error || !data) return undefined;
@@ -254,6 +260,9 @@ export const AvatarDB = {
       },
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      hourlyPrice: data.hourly_price || 20000,   // 分
+      fixedPrice: data.fixed_price || 500000,   // 分
+      tokenPrice: data.token_price || 500000,   // 分
     };
   },
 };

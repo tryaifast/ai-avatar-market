@@ -40,6 +40,7 @@ export interface ChatCompletionResponse {
 // ============================================
 // 发送消息到Kimi API
 // 支持Kimi官方API和阿里云百炼API (OpenAI兼容模式)
+// 返回: AI回复内容 + token使用量
 // ============================================
 export async function chatWithKimi(options: ChatCompletionOptions): Promise<string> {
   if (!KIMI_API_KEY) {
@@ -68,6 +69,102 @@ export async function chatWithKimi(options: ChatCompletionOptions): Promise<stri
 
   const data: ChatCompletionResponse = await response.json();
   return data.choices[0]?.message?.content || '';
+}
+
+// ============================================
+// 带Usage的对话接口（用于计费统计）
+// ============================================
+export interface ChatWithUsageResult {
+  content: string;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+  };
+}
+
+export async function chatWithKimiAndUsage(options: ChatCompletionOptions): Promise<ChatWithUsageResult> {
+  if (!KIMI_API_KEY) {
+    throw new Error('KIMI_API_KEY not configured');
+  }
+
+  const response = await fetch(`${KIMI_API_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${KIMI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: options.model || 'kimi-k2-5',
+      messages: options.messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.max_tokens ?? 2000,
+      stream: false,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Kimi API error: ${error}`);
+  }
+
+  const data: ChatCompletionResponse = await response.json();
+
+  return {
+    content: data.choices[0]?.message?.content || '',
+    usage: {
+      inputTokens: data.usage?.prompt_tokens || 0,
+      outputTokens: data.usage?.completion_tokens || 0,
+      totalTokens: data.usage?.total_tokens || 0,
+    },
+  };
+}
+
+// ============================================
+// API 成本计算（分）
+// 基于 Kimi 定价（阿里云百炼）
+// ============================================
+export function calculateApiCost(
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+): number {
+  // 定价：¥/1K tokens，转为 分/token
+  const PRICING: Record<string, { input: number; output: number }> = {
+    'kimi-turbo': { input: 0.000012, output: 0.000012 },  // ¥0.012/1K
+    'kimi-pro': { input: 0.000024, output: 0.000024 },    // ¥0.024/1K
+    'kimi-k2-5': { input: 0.000012, output: 0.000012 },   // 同 turbo
+  };
+
+  const rate = PRICING[model] || PRICING['kimi-k2-5'];
+  const cost = inputTokens * rate.input + outputTokens * rate.output;
+  return Math.ceil(cost * 100); // 转为分
+}
+
+// ============================================
+// 创作者收益计算
+// 三种模式: hourly / fixed / token
+// ============================================
+export function calculateCreatorEarnings(task: {
+  pricing_type: string;
+  price: number;
+  token_usage: number;
+  api_cost: number;
+}): number {
+  // token 计费模式：不足百万按百万算
+  if (task.pricing_type === 'token') {
+    const millions = Math.ceil(task.token_usage / 1000000);
+    const grossRevenue = millions * task.price;
+    const platformFee = Math.floor(grossRevenue * 0.1);
+    const netEarnings = grossRevenue - platformFee - task.api_cost;
+    return Math.max(0, netEarnings);
+  }
+
+  // hourly / fixed 模式
+  const platformFee = Math.floor(task.price * 0.1);
+  const grossEarnings = task.price - platformFee;
+  const netEarnings = grossEarnings - task.api_cost;
+  return Math.max(0, netEarnings);
 }
 
 // ============================================

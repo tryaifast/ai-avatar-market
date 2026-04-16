@@ -137,11 +137,9 @@ export default function CreateAvatarPage() {
       memory: null as File | null,
       history: [] as File[],
     },
-    pricing: {
-      type: 'per_task' as 'per_task' | 'subscription',
-      perTask: { min: 500, max: 2000 },
-      subscription: { monthly: 29900, yearly: 299000 },
-    },
+    hourlyPrice: 200,     // 元/小时
+    fixedPrice: 5000,     // 元/项目
+    tokenPrice: 5000,     // 元/百万tokens
     scope: {
       canDo: [] as string[],
       cannotDo: [] as string[],
@@ -200,7 +198,9 @@ export default function CreateAvatarPage() {
             history: [],
             custom: [],
           },
-          pricing: formData.pricing,
+          hourlyPrice: formData.hourlyPrice,
+          fixedPrice: formData.fixedPrice,
+          tokenPrice: formData.tokenPrice,
           scope: formData.scope,
           status: 'pending',
         }),
@@ -691,156 +691,93 @@ export default function CreateAvatarPage() {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  定价方式
-                </label>
-                <div className="grid sm:grid-cols-2 gap-3">
-                  <label
-                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-                      formData.pricing.type === 'per_task'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="pricingType"
-                      value="per_task"
-                      checked={formData.pricing.type === 'per_task'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, type: 'per_task' },
-                        })
-                      }
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">按任务计费</div>
-                      <div className="text-sm text-gray-500">每个任务单独定价</div>
-                    </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">服务定价</h3>
+                <p className="text-sm text-gray-500 mb-4">设置三种定价方式，雇佣者可选择最适合的方案</p>
+              </div>
+
+              {/* 按小时定价 */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                  <span className="font-medium text-gray-900">按小时计费</span>
+                  <span className="text-xs text-gray-500">适合咨询类服务</span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    价格 (元/小时)
                   </label>
-                  <label
-                    className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-                      formData.pricing.type === 'subscription'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="pricingType"
-                      value="subscription"
-                      checked={formData.pricing.type === 'subscription'}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: { ...formData.pricing, type: 'subscription' },
-                        })
-                      }
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">订阅制</div>
-                      <div className="text-sm text-gray-500">按月/年订阅</div>
-                    </div>
-                  </label>
+                  <input
+                    type="number"
+                    value={formData.hourlyPrice}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        hourlyPrice: Math.max(50, parseInt(e.target.value) || 0),
+                      })
+                    }
+                    className="input"
+                    min={50}
+                    step={50}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">建议：¥200-500/小时</p>
                 </div>
               </div>
 
-              {formData.pricing.type === 'per_task' ? (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      最低价格 (¥)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.pricing.perTask.min / 100}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: {
-                            ...formData.pricing,
-                            perTask: {
-                              ...formData.pricing.perTask,
-                              min: parseInt(e.target.value) * 100,
-                            },
-                          },
-                        })
-                      }
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      最高价格 (¥)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.pricing.perTask.max / 100}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: {
-                            ...formData.pricing,
-                            perTask: {
-                              ...formData.pricing.perTask,
-                              max: parseInt(e.target.value) * 100,
-                            },
-                          },
-                        })
-                      }
-                      className="input"
-                    />
-                  </div>
+              {/* 按项目定价 */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                  <span className="font-medium text-gray-900">按项目计费</span>
+                  <span className="text-xs text-gray-500">适合交付类服务</span>
                 </div>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      月订阅价格 (¥)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.pricing.subscription.monthly / 100}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: {
-                            ...formData.pricing,
-                            subscription: {
-                              ...formData.pricing.subscription,
-                              monthly: parseInt(e.target.value) * 100,
-                            },
-                          },
-                        })
-                      }
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      年订阅价格 (¥)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.pricing.subscription.yearly / 100}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          pricing: {
-                            ...formData.pricing,
-                            subscription: {
-                              ...formData.pricing.subscription,
-                              yearly: parseInt(e.target.value) * 100,
-                            },
-                          },
-                        })
-                      }
-                      className="input"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    价格 (元/项目)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.fixedPrice}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        fixedPrice: Math.max(500, parseInt(e.target.value) || 0),
+                      })
+                    }
+                    className="input"
+                    min={500}
+                    step={500}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">建议：¥3000-10000/项目</p>
                 </div>
-              )}
+              </div>
+
+              {/* 按Token定价 */}
+              <div className="p-4 border rounded-lg space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                  <span className="font-medium text-gray-900">按 Token 计费</span>
+                  <span className="text-xs text-gray-500">适合AI重度使用，不足百万按百万算</span>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    价格 (元/百万Tokens)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.tokenPrice}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        tokenPrice: Math.max(1000, parseInt(e.target.value) || 0),
+                      })
+                    }
+                    className="input"
+                    min={1000}
+                    step={500}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">建议：¥3000-8000/百万Tokens</p>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
