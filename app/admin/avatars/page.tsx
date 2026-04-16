@@ -45,7 +45,7 @@ function AdminAvatarsContent() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     const statusLabel: Record<string, string> = {
-      active: '上架', paused: '下架', banned: '封禁',
+      active: '上架', paused: '下架', banned: '封禁', unbanned: '解封',
     };
     const confirmed = window.confirm(`确定要${statusLabel[newStatus] || '修改状态为' + newStatus}该分身吗？`);
     if (!confirmed) return;
@@ -237,7 +237,15 @@ function AdminAvatarsContent() {
                               恢复上架
                             </button>
                           )}
-                          {(avatar.status === 'rejected' || avatar.status === 'banned') && (
+                          {avatar.status === 'banned' && (
+                            <button
+                              onClick={() => handleStatusChange(avatar.id, 'active')}
+                              className="text-green-600 hover:underline text-sm"
+                            >
+                              解封
+                            </button>
+                          )}
+                          {avatar.status === 'rejected' && (
                             <button
                               onClick={() => handleStatusChange(avatar.id, 'active')}
                               className="text-green-600 hover:underline text-sm"
@@ -245,7 +253,7 @@ function AdminAvatarsContent() {
                               上架
                             </button>
                           )}
-                          {avatar.status !== 'banned' && (
+                          {avatar.status !== 'banned' && avatar.status !== 'rejected' && (
                             <button
                               onClick={() => handleStatusChange(avatar.id, 'banned')}
                               className="text-red-600 hover:underline text-sm"
@@ -345,12 +353,28 @@ function AdminAvatarsContent() {
                   恢复上架
                 </button>
               )}
-              {(detailAvatar.status === 'rejected' || detailAvatar.status === 'banned') && (
+              {detailAvatar.status === 'banned' && (
+                <button
+                  onClick={() => { handleStatusChange(detailAvatar.id, 'active'); setShowDetailModal(false); }}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                >
+                  解封
+                </button>
+              )}
+              {detailAvatar.status === 'rejected' && (
                 <button
                   onClick={() => { handleStatusChange(detailAvatar.id, 'active'); setShowDetailModal(false); }}
                   className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                 >
                   上架
+                </button>
+              )}
+              {detailAvatar.status !== 'banned' && detailAvatar.status !== 'rejected' && (
+                <button
+                  onClick={() => { handleStatusChange(detailAvatar.id, 'banned'); setShowDetailModal(false); }}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                >
+                  封禁
                 </button>
               )}
               <button onClick={() => setShowDetailModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm">
