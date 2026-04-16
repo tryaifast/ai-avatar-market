@@ -789,6 +789,65 @@ Bug2: 管理后台授予会员不生效
 - 详情弹窗：同上，banned/rejected 分离处理
 - `statusLabel` 新增 `unbanned: '解封'`
 
+### Phase 28 (04-16): 创作者定价与任务计费系统
+
+**需求**：
+1. 创作者需要自主定价（按小时/按项目/按百万Tokens）
+2. 平台10%抽成，API成本从创作者收益中扣除
+3. 任务完成时自动结算创作者收益
+
+**核心设计**：
+- 三种定价模式：hourly(元/小时) / fixed(元/项目) / token(元/百万tokens)
+- Token计费规则：不足百万按百万算（Math.ceil(tokenUsage/1000000)）
+- 收益公式：creatorEarnings = price × 90% - apiCost（token模式: ceil(usage/1M) × price × 90% - apiCost）
+- 价格存储：数据库以"分"为单位，前端以"元"显示
+
+**修改文件**：
+1. `supabase/migrations/phase28_pricing_and_billing.sql` — 新增字段
+   - avatars: hourly_price / fixed_price / token_price
+   - tasks: token_usage / api_cost / creator_earnings / price / token_budget
+   - task_messages: input_tokens / output_tokens / total_tokens / api_cost
+   - ⚠️ 需要在Supabase SQL Editor中执行
+
+2. `lib/ai/kimi.ts` — 新增计费函数
+   - `chatWithKimiAndUsage()`: 返回content + usage统计
+   - `calculateApiCost()`: 按模型计算API成本（分）
+   - `calculateCreatorEarnings()`: 三种模式收益计算
+
+3. `app/api/chat/route.ts` — token统计追踪
+   - 切换到chatWithKimiAndUsage
+   - 更新task_messages的token统计
+   - 累计task的token_usage和api_cost
+
+4. `app/api/tasks/[id]/complete/route.ts` — 新增任务完成API
+   - 计算creatorEarnings
+   - 更新task状态为completed
+   - 通知创作者
+
+5. `app/api/creator/earnings/route.ts` — 新增收益看板API
+   - 累计收益/待结算/API成本/完成任务数
+   - 月度统计
+
+6. `app/api/hire/order/route.ts` — token计费模式
+   - planType验证包含'token'
+   - token模式: baseAmount = avatarTokenPrice, tokenBudget = 1000000
+
+7. `app/api/hire/notify/route.ts` — 创建task写入计费字段
+   - pricing_type / token_usage / api_cost / creator_earnings / token_budget
+
+8. `app/creator/avatar/create/page.tsx` — 定价UI
+   - 三种定价卡片：按小时/按项目/按Token
+   - 清理旧pricing字段
+
+9. `app/creator/earnings/page.tsx` — 收益中心页面
+   - 统计卡片：累计收益/待结算/API成本/完成任务
+   - 月度收益表格
+
+10. `lib/db/supabase.ts` — 数据层更新
+    - AvatarDB.create/update支持三种定价字段
+    - toAvatar返回hourlyPrice/fixedPrice/tokenPrice（分）
+    - 修复默认值：200元→20000分
+
 ---
 
 ### Phase 24 (04-14): 支付宝invalid-signature修复（return_url参数问题）
