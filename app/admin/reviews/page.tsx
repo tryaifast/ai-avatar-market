@@ -436,23 +436,39 @@ function AdminReviewsContent() {
                   </div>
                 )}
 
-                {/* 简历链接 */}
+                {/* 简历下载 */}
                 {detailItem.resume_url && (
                   <div className="mb-4">
                     <span className="text-gray-500 text-sm">简历：</span>
-                    <a href={detailItem.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline ml-1">
-                      查看简历
+                    <a 
+                      href={`/api/admin/applications/${detailItem.id}/download?type=resume`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded hover:bg-blue-100 ml-1"
+                      title="下载后自动删除服务器文件"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      下载简历
                     </a>
+                    <span className="text-xs text-gray-400 ml-2">（下载后自动删除）</span>
                   </div>
                 )}
 
-                {/* 作品集链接 */}
+                {/* 作品集下载 */}
                 {detailItem.portfolio_url && (
                   <div className="mb-4">
                     <span className="text-gray-500 text-sm">作品集：</span>
-                    <a href={detailItem.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline ml-1">
-                      查看作品集
+                    <a 
+                      href={`/api/admin/applications/${detailItem.id}/download?type=portfolio`}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 text-sm rounded hover:bg-blue-100 ml-1"
+                      title="下载后自动删除服务器文件"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      下载作品集
                     </a>
+                    <span className="text-xs text-gray-400 ml-2">（下载后自动删除）</span>
                   </div>
                 )}
 
