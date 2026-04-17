@@ -1,6 +1,6 @@
 // lib/knowledge/embedding.ts
-// 向量化服务 - 使用阿里云百炼 Embedding API（免费额度）
-// 备用：@xenova/transformers 本地模式（仅开发环境）
+// 向量化服务 - 使用火山方舟 Coding Plan Embedding API
+// 模型: doubao-embedding-vision, 维度: 1024
 
 export interface EmbeddingChunk {
   text: string;
@@ -10,13 +10,14 @@ export interface EmbeddingChunk {
 export class EmbeddingService {
   private static instance: EmbeddingService | null = null;
   private apiKey: string | null = null;
-  private baseUrl = 'https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding';
-  private modelName = 'text-embedding-v2';  // 阿里云免费 embedding 模型
-  private dimensions = 1536;  // text-embedding-v2 输出维度
+  // 火山方舟 Coding Plan 专属 endpoint
+  private baseUrl = 'https://ark.cn-beijing.volces.com/api/coding/v3/embeddings';
+  private modelName = 'doubao-embedding-vision';
+  public readonly dimensions = 1024;  // 火山方舟 embedding 维度
 
   private constructor() {
-    // 从环境变量读取 API Key
-    this.apiKey = process.env.DASHSCOPE_API_KEY || process.env.ALIYUN_API_KEY || null;
+    // 从环境变量读取 API Key（优先 ARK_API_KEY，兼容 DASHSCOPE_API_KEY）
+    this.apiKey = process.env.ARK_API_KEY || process.env.DASHSCOPE_API_KEY || null;
   }
 
   static getInstance(): EmbeddingService {
@@ -27,13 +28,13 @@ export class EmbeddingService {
   }
 
   async getEmbedding(text: string): Promise<number[]> {
-    // 如果没有 API Key，使用简单的 hash 向量（仅开发环境）
     if (!this.apiKey) {
       console.warn('[Embedding] No API key found, using simple hash fallback (dev only)');
       return this.simpleHashEmbedding(text);
     }
 
     try {
+      // 火山方舟 API 兼容 OpenAI 格式
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
@@ -42,12 +43,8 @@ export class EmbeddingService {
         },
         body: JSON.stringify({
           model: this.modelName,
-          input: {
-            texts: [this.truncateToTokens(text, 512)],
-          },
-          parameters: {
-            text_type: 'document',
-          },
+          input: this.truncateToTokens(text, 512),
+          encoding_format: 'float',
         }),
       });
 
@@ -58,8 +55,14 @@ export class EmbeddingService {
       }
 
       const data = await response.json();
-      if (data.output?.embeddings?.[0]?.embedding) {
-        return data.output.embeddings[0].embedding;
+      // OpenAI 格式: data[0].embedding
+      if (data.data?.[0]?.embedding) {
+        const embedding = data.data[0].embedding;
+        // 验证维度
+        if (embedding.length !== this.dimensions) {
+          console.warn(`[Embedding] Dimension mismatch: expected ${this.dimensions}, got ${embedding.length}`);
+        }
+        return embedding;
       }
 
       console.warn('[Embedding] Unexpected API response:', JSON.stringify(data).slice(0, 200));
@@ -81,9 +84,9 @@ export class EmbeddingService {
     return results;
   }
 
-  // 简单的 hash 向量回退（开发环境用，不保证语义质量）
+  // 简单的 hash 向量回退（开发环境用，维度匹配数据库）
   private simpleHashEmbedding(text: string): number[] {
-    const dim = 768;  // pgvector 列维度
+    const dim = this.dimensions;  // 1024 维
     const vec = new Array(dim).fill(0);
 
     for (let i = 0; i < text.length; i++) {
