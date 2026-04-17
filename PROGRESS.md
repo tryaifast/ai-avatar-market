@@ -1,6 +1,6 @@
 # AI Avatar Market - 项目进度报告
 
-> 最近更新: 2026-04-16
+> 最近更新: 2026-04-17
 > 应用方法论: Superpowers + DeerFlow
 
 ---
@@ -847,6 +847,97 @@ Bug2: 管理后台授予会员不生效
     - AvatarDB.create/update支持三种定价字段
     - toAvatar返回hourlyPrice/fixedPrice/tokenPrice（分）
     - 修复默认值：200元→20000分
+
+---
+
+### Phase 29 (04-17): 知识库系统+RAG检索+交付物管理
+
+**需求**：
+1. AI分身需要专属知识库，支持上传文档/代码/记忆等资料
+2. 聊天时自动检索相关知识（RAG），提升回答质量
+3. 任务完成后生成交付物（ZIP/PDF），支持下载和24h自动过期清理
+
+**核心设计**：
+- 知识库：上传文件 → 解析（markdown/PDF/text/code） → 向量化 → 存储到 Supabase pgvector
+- RAG检索：用户消息 → 生成embedding → 向量相似度搜索 → 注入系统提示词
+- 交付物：聊天内容 → 提取代码块+生成ZIP / Markdown→PDF → Storage存储 → 24h过期清理
+
+**新增文件**：
+
+1. `lib/knowledge/embedding.ts` — 向量嵌入服务
+   - 使用阿里云百炼 text-embedding-v2 API（1536维）
+   - 单例模式，支持 getEmbedding() 和 embedChunks()
+   - 替代原计划本地 @xenova/transformers（onnxruntime 不兼容 Vercel）
+
+2. `lib/knowledge/parser.ts` — 文档解析器
+   - 支持 markdown/PDF/text/code 四种格式
+   - PDF 用 unpdf（轻量零依赖），替代 pdf-parse（pdfjs-dist ESM不兼容webpack）
+
+3. `lib/knowledge/storage.ts` — 知识库存储
+   - 上传文件到 Supabase Storage + 写入 avatar_knowledge 表
+   - 文本分块+向量化后存储，支持列表/删除
+
+4. `lib/knowledge/retrieval.ts` — RAG检索服务
+   - 调用 match_knowledge RPC（pgvector余弦相似度）
+   - 支持 retrieveByText() 便捷方法
+   - buildKnowledgePrompt() 构建知识库上下文
+
+5. `lib/deliverables/extractor.ts` — 代码块提取器
+   - 从markdown中提取 \`\`\`code blocks
+   - 自动识别文件名和语言
+
+6. `lib/deliverables/generator.ts` — 交付物生成器
+   - generateZip(): JSZip打包代码文件+README
+   - markdownToPDF(): pdfkit生成PDF（替代puppeteer-core，不依赖Chrome）
+
+7. `lib/deliverables/storage.ts` — 交付物存储
+   - 上传到 Supabase Storage deliverables bucket
+   - 写入 task_deliverables 表（24h过期）
+   - 延迟初始化 getDb() 避免 SSG 阶段崩溃
+
+8. `lib/deliverables/cleanup.ts` — 过期清理服务
+   - 清理过期交付物的Storage文件+数据库记录
+
+9. `app/api/avatars/[id]/knowledge/route.ts` — 知识库CRUD API
+   - GET: 列表知识库文件
+   - DELETE: 删除知识库文件
+
+10. `app/api/avatars/[id]/knowledge/upload/route.ts` — 知识库上传API
+    - POST: 上传文件 → 解析 → 向量化 → 存储
+
+11. `app/api/tasks/[id]/deliverables/route.ts` — 交付物列表API
+    - GET: 获取任务的所有交付物
+
+12. `app/api/tasks/[id]/deliverables/generate/route.ts` — 交付物生成API
+    - POST: 提取代码+生成ZIP/PDF
+
+13. `app/api/tasks/[id]/deliverables/[deliverableId]/route.ts` — 交付物下载/删除API
+    - GET: 下载交付物（更新download_count）
+    - DELETE: 删除交付物
+
+14. `app/creator/avatar/[id]/knowledge/page.tsx` — 知识库管理页面
+    - 上传文件（拖拽+按钮）
+    - 文件列表（类型图标+大小+时间）
+    - 删除确认
+
+15. `app/client/workspace/page.tsx` — 工作区交付物tab升级
+    - 交付物列表（类型标签+大小+下载次数+过期倒计时）
+    - 生成按钮（带loading动画）
+    - 下载功能（Blob下载+刷新计数）
+    - 24h过期提示
+
+16. `supabase/migrations/phase29_knowledge_base.sql` — 数据库迁移
+    - avatar_knowledge 表（含 VECTOR(1536) embedding 字段）
+    - task_deliverables 表（含 expires_at 过期时间）
+    - match_knowledge RPC 函数（余弦相似度检索）
+
+**技术决策**：
+- **Embedding**: 阿里云百炼 API 替代本地 @xenova/transformers — onnxruntime-node 原生二进制不兼容 Vercel serverless
+- **PDF生成**: pdfkit 替代 puppeteer-core — puppeteer 的 #target 私有字段语法webpack无法编译
+- **PDF解析**: unpdf 替代 pdf-parse — pdfjs-dist ESM 导出与 webpack 不兼容
+- **向量维度**: 1536（阿里云 text-embedding-v2），非768
+- **Supabase类型**: 新增表不在类型定义中，用 `as any` 绕过
+- **延迟初始化**: `getDb()` 替代顶层 `const db = createServiceClient()` 避免 SSG 崩溃
 
 ---
 
