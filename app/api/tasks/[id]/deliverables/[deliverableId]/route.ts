@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/client';
+
+interface DeliverableRecord {
+  id: string;
+  task_id: string;
+  filename: string;
+  deliverable_type: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  download_count: number;
+  expires_at: string;
+  created_at: string;
+}
 
 // GET /api/tasks/[id]/deliverables/[deliverableId] - 下载交付物
 export async function GET(
@@ -7,16 +20,18 @@ export async function GET(
   { params }: { params: { id: string; deliverableId: string } }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { id: taskId, deliverableId } = params;
 
     // 获取交付物记录
-    const { data: deliverable, error } = await supabase
+    const { data, error } = await supabase
       .from('task_deliverables')
       .select('*')
       .eq('id', deliverableId)
       .eq('task_id', taskId)
       .single();
+
+    const deliverable = data as unknown as DeliverableRecord;
 
     if (error || !deliverable) {
       return NextResponse.json({ error: '交付物不存在' }, { status: 404 });
@@ -38,8 +53,8 @@ export async function GET(
     }
 
     // 更新下载计数
-    await supabase
-      .from('task_deliverables')
+    await (supabase
+      .from('task_deliverables') as any)
       .update({ download_count: deliverable.download_count + 1 })
       .eq('id', deliverableId);
 
@@ -62,16 +77,18 @@ export async function DELETE(
   { params }: { params: { id: string; deliverableId: string } }
 ) {
   try {
-    const supabase = await createClient();
+    const supabase = createServiceClient();
     const { id: taskId, deliverableId } = params;
 
     // 获取交付物记录
-    const { data: deliverable } = await supabase
+    const { data } = await supabase
       .from('task_deliverables')
       .select('file_path')
       .eq('id', deliverableId)
       .eq('task_id', taskId)
       .single();
+
+    const deliverable = data as unknown as { file_path: string };
 
     if (deliverable?.file_path) {
       // 删除 Storage 文件

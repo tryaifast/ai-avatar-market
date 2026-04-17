@@ -1,19 +1,26 @@
 // lib/deliverables/cleanup.ts
 import { createServiceClient } from '@/lib/supabase/client';
 
-const db = createServiceClient();
+function getDb() { return createServiceClient(); }
+
+interface ExpiredDeliverable {
+  id: string;
+  file_path: string;
+}
 
 export class DeliverableCleanup {
   async cleanupExpired(): Promise<number> {
-    const { data: expired } = await db.from('task_deliverables').select('id, file_path').lt('expires_at', new Date().toISOString());
+    const db = getDb();
+    const { data: expired } = await (db.from('task_deliverables') as any).select('id, file_path').lt('expires_at', new Date().toISOString());
     
-    for (const item of expired || []) {
+    const items = (expired || []) as ExpiredDeliverable[];
+    for (const item of items) {
       await db.storage.from('deliverables').remove([item.file_path]);
-      await db.from('task_deliverables').delete().eq('id', item.id);
+      await (db.from('task_deliverables') as any).delete().eq('id', item.id);
     }
     
-    console.log(`[Cleanup] Removed ${expired?.length || 0} expired deliverables`);
-    return expired?.length || 0;
+    console.log(`[Cleanup] Removed ${items.length} expired deliverables`);
+    return items.length;
   }
 }
 

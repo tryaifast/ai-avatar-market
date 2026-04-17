@@ -7,5 +7,5 @@ const nextConfig = {
   trailingSlash: false,
   reactStrictMode: false,
   // 确保crypto模块不被webpack打包，在Node.js运行时中直接使用
-  serverExternalPackages: ['crypto'],
+  serverExternalPackages: ['crypto', 'unpdf'],
 }

@@ -14,7 +14,7 @@ CREATE TABLE avatar_knowledge (
     mime_type TEXT NOT NULL,
     content TEXT NOT NULL,
     content_type TEXT NOT NULL CHECK (content_type IN ('soul', 'memory', 'document', 'code', 'text')),
-    embedding VECTOR(768),
+    embedding VECTOR(1536),
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -51,7 +51,7 @@ CREATE INDEX idx_task_deliverables_expires ON task_deliverables(expires_at);
 
 CREATE OR REPLACE FUNCTION match_knowledge(
   p_avatar_id UUID,
-  p_embedding VECTOR(768),
+  p_embedding VECTOR(1536),
   p_match_count INT DEFAULT 5,
   p_similarity_threshold FLOAT DEFAULT 0.7
 )

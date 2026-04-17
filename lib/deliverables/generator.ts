@@ -1,7 +1,6 @@
 // lib/deliverables/generator.ts
 import JSZip from 'jszip';
-import chromium from '@sparticuz/chromium';
-import puppeteer from 'puppeteer-core';
+import PDFDocument from 'pdfkit';
 import { CodeBlock } from './extractor';
 
 export class DeliverableGenerator {
@@ -18,40 +17,47 @@ export class DeliverableGenerator {
   }
 
   async markdownToPDF(markdown: string): Promise<Buffer> {
-    const html = this.markdownToHTML(markdown);
-    
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true
-    });
-    
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    
-    const pdf = await page.pdf({
-      format: 'A4',
-      margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
-    });
-    
-    await browser.close();
-    return pdf;
-  }
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 50, right: 50, bottom: 50, left: 50 },
+        info: {
+          Title: 'Deliverable Document',
+          Creator: 'AI Avatar Market',
+        },
+      });
 
-  private markdownToHTML(markdown: string): string {
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    body { font-family: -apple-system, sans-serif; line-height: 1.6; max-width: 800px; margin: 40px auto; padding: 0 20px; }
-    h1, h2, h3 { color: #333; }
-    code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; }
-    pre { background: #f5f5f5; padding: 16px; border-radius: 6px; overflow-x: auto; }
-  </style>
-</head>
-<body>${markdown}</body>
-</html>`;
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Render markdown as styled text (basic parsing)
+      const lines = markdown.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('# ')) {
+          doc.font('Helvetica-Bold').fontSize(22).fillColor('#1a1a1a').text(line.slice(2));
+          doc.moveDown(0.5);
+        } else if (line.startsWith('## ')) {
+          doc.font('Helvetica-Bold').fontSize(18).fillColor('#333').text(line.slice(3));
+          doc.moveDown(0.4);
+        } else if (line.startsWith('### ')) {
+          doc.font('Helvetica-Bold').fontSize(14).fillColor('#444').text(line.slice(4));
+          doc.moveDown(0.3);
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          doc.font('Helvetica').fontSize(11).fillColor('#333').text(`  • ${line.slice(2)}`);
+        } else if (line.startsWith('```')) {
+          // Skip code fence markers
+          doc.moveDown(0.3);
+        } else if (line.trim() === '') {
+          doc.moveDown(0.3);
+        } else {
+          doc.font('Helvetica').fontSize(11).fillColor('#333').text(line);
+        }
+      }
+
+      doc.end();
+    });
   }
 }
 

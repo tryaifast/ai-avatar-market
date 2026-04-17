@@ -1,5 +1,4 @@
 // lib/knowledge/parser.ts
-import pdfParse from 'pdf-parse';
 
 export interface ParseResult {
   text: string;
@@ -35,15 +34,33 @@ export class DocumentParser {
   }
 
   private async parsePDF(buffer: Buffer): Promise<ParseResult> {
-    const data = await pdfParse(buffer);
-    return {
-      text: data.text,
-      metadata: {
-        title: data.info?.Title,
-        author: data.info?.Author,
-        pageCount: data.numpages
+    try {
+      // 动态 import unpdf 避免 webpack import.meta 警告
+      const { getDocumentProxy } = await import('unpdf');
+      const data = new Uint8Array(buffer);
+      const pdf = await getDocumentProxy(data);
+      const pages: string[] = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items
+          .map((item: any) => item.str)
+          .join(' ');
+        pages.push(pageText);
       }
-    };
+
+      return {
+        text: pages.join('\n\n'),
+        metadata: {
+          pageCount: pdf.numPages,
+        }
+      };
+    } catch (err: any) {
+      // PDF 解析失败时返回空文本，不影响整体流程
+      console.warn('[parser] PDF parse failed:', err.message);
+      return { text: '', metadata: {} };
+    }
   }
 
   private parseText(buffer: Buffer): ParseResult {
