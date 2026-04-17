@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chatWithKimiAndUsage, generateAvatarSystemPrompt, calculateApiCost } from '@/lib/ai/kimi';
 import { DB } from '@/lib/db/supabase';
+import { EmbeddingService } from '@/lib/knowledge/embedding';
+import { KnowledgeRetrievalService } from '@/lib/knowledge/retrieval';
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,8 +39,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 生成系统提示词
-    const systemPrompt = generateAvatarSystemPrompt(avatar);
+    // 生成系统提示词（基础）
+    let systemPrompt = generateAvatarSystemPrompt(avatar);
+
+    // 🔍 RAG: 检索与用户问题相关的知识库内容
+    let knowledgeContext = '';
+    try {
+      const embeddingService = EmbeddingService.getInstance();
+      const queryEmbedding = await embeddingService.getEmbedding(content);
+      const retrievalService = new KnowledgeRetrievalService();
+      const matches = await retrievalService.search(task.avatarId, queryEmbedding, {
+        matchCount: 5,
+        similarityThreshold: 0.6,
+      });
+
+      if (matches.length > 0) {
+        knowledgeContext = '\n\n## 你的专属知识库\n\n以下是和你相关的知识库资料，请基于这些资料回答用户的问题：\n\n' +
+          matches.map((m: any, i: number) =>
+            `### 资料片段 ${i + 1}（来源: ${m.content_type}, 相似度: ${(m.similarity * 100).toFixed(0)}%）\n${m.content}`
+          ).join('\n\n---\n\n') +
+          '\n\n---\n**请优先参考以上知识库资料回答问题。如果知识库资料不足以回答问题，可以用你的通用知识补充，但要明确标注。**';
+      }
+    } catch (ragErr: any) {
+      // RAG 失败不影响主流程，仅记录警告
+      console.warn('[chat/RAG] Knowledge retrieval failed (non-critical):', ragErr.message);
+    }
+
+    // 将知识库上下文附加到系统提示词
+    if (knowledgeContext) {
+      systemPrompt += knowledgeContext;
+    }
 
     // 构建消息历史
     const messages = [
