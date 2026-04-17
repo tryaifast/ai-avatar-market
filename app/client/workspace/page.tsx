@@ -1,12 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useTaskStore, useAuthStore, useAuthHydrated } from '@/lib/store';
+
+interface Deliverable {
+  id: string;
+  filename: string;
+  deliverable_type: 'code' | 'document' | 'data' | 'archive' | 'other';
+  file_size: number;
+  mime_type: string;
+  download_count: number;
+  expires_at: string;
+  created_at: string;
+}
 
 // 项目工作区 - 客户端组件
 export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'chat' | 'files' | 'timeline'>('overview');
+  const [deliverableList, setDeliverableList] = useState<Deliverable[]>([]);
+  const [generatingDeliverables, setGeneratingDeliverables] = useState(false);
+  const [loadingDeliverables, setLoadingDeliverables] = useState(false);
   const { tasks, currentTask, fetchTasks, fetchTaskById, isLoading: taskLoading } = useTaskStore();
   const { user } = useAuthStore();
   const { isHydrated, isAuthenticated } = useAuthHydrated();
@@ -20,6 +34,76 @@ export default function WorkspacePage() {
 
   // 使用第一个任务作为当前展示项目（如果有URL参数可改为具体任务）
   const project = currentTask || tasks[0];
+
+  // 获取交付物列表
+  const fetchDeliverables = useCallback(async () => {
+    if (!project?.id) return;
+    setLoadingDeliverables(true);
+    try {
+      const res = await fetch(`/api/tasks/${project.id}/deliverables`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeliverableList(data.deliverables || []);
+      }
+    } catch (err) {
+      console.warn('Fetch deliverables failed:', err);
+    } finally {
+      setLoadingDeliverables(false);
+    }
+  }, [project?.id]);
+
+  // 生成交付物
+  const handleGenerateDeliverables = async () => {
+    if (!project?.id) return;
+    setGeneratingDeliverables(true);
+    try {
+      const res = await fetch(`/api/tasks/${project.id}/deliverables/generate`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.deliverables?.length > 0) {
+          await fetchDeliverables();
+        }
+      } else {
+        const err = await res.json();
+        alert(err.error || '生成交付物失败');
+      }
+    } catch (err) {
+      console.error('Generate deliverables failed:', err);
+      alert('生成交付物失败，请稍后重试');
+    } finally {
+      setGeneratingDeliverables(false);
+    }
+  };
+
+  // 下载交付物
+  const handleDownload = async (deliverable: Deliverable) => {
+    if (!project?.id) return;
+    try {
+      const res = await fetch(`/api/tasks/${project.id}/deliverables/${deliverable.id}/download`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = deliverable.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        // 刷新列表（更新 download_count）
+        fetchDeliverables();
+      }
+    } catch (err) {
+      console.error('Download failed:', err);
+    }
+  };
+
+  // 切换到files tab时加载交付物
+  useEffect(() => {
+    if (activeTab === 'files' && project?.id) {
+      fetchDeliverables();
+    }
+  }, [activeTab, project?.id, fetchDeliverables]);
 
   if (taskLoading && tasks.length === 0) {
     return (
@@ -298,44 +382,113 @@ export default function WorkspacePage() {
 
         {activeTab === 'files' && (
           <div className="card">
-            <h3 className="font-semibold mb-4">交付物管理</h3>
-            {deliverables.length > 0 ? (
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-semibold">交付物管理</h3>
+              <button
+                onClick={handleGenerateDeliverables}
+                disabled={generatingDeliverables}
+                className={`btn btn-primary btn-sm ${generatingDeliverables ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {generatingDeliverables ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    生成中...
+                  </span>
+                ) : (
+                  '📦 生成交付物'
+                )}
+              </button>
+            </div>
+
+            {loadingDeliverables ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-2 text-sm">加载交付物...</p>
+              </div>
+            ) : deliverableList.length > 0 ? (
               <div className="table-container">
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>名称</th>
+                      <th>文件名</th>
                       <th>类型</th>
-                      <th>创建者</th>
-                      <th>日期</th>
+                      <th>大小</th>
+                      <th>下载次数</th>
+                      <th>过期时间</th>
                       <th>操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {deliverables.map((item: any) => (
-                      <tr key={item.id}>
-                        <td className="flex items-center gap-2">
-                          <span>📄</span>
-                          {item.description || item.content?.substring(0, 30) || '-'}
-                        </td>
-                        <td>{item.type}</td>
-                        <td>{item.createdBy === 'ai' ? 'AI' : '真人'}</td>
-                        <td>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : '-'}</td>
-                        <td>
-                          <button className="text-blue-600 hover:underline text-sm mr-3">
-                            下载
-                          </button>
-                          <button className="text-gray-600 hover:underline text-sm">
-                            预览
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {deliverableList.map((item) => {
+                      const expiresAt = new Date(item.expires_at);
+                      const hoursLeft = Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 3600000));
+                      return (
+                        <tr key={item.id}>
+                          <td className="flex items-center gap-2">
+                            <span className="text-lg">
+                              {item.deliverable_type === 'code' ? '💻' :
+                               item.deliverable_type === 'document' ? '📄' :
+                               item.deliverable_type === 'archive' ? '📦' :
+                               item.deliverable_type === 'data' ? '📊' : '📎'}
+                            </span>
+                            <span className="font-medium">{item.filename}</span>
+                          </td>
+                          <td>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              item.deliverable_type === 'code' ? 'bg-blue-100 text-blue-700' :
+                              item.deliverable_type === 'document' ? 'bg-green-100 text-green-700' :
+                              item.deliverable_type === 'archive' ? 'bg-purple-100 text-purple-700' :
+                              item.deliverable_type === 'data' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {item.deliverable_type === 'code' ? '代码' :
+                               item.deliverable_type === 'document' ? '文档' :
+                               item.deliverable_type === 'archive' ? '压缩包' :
+                               item.deliverable_type === 'data' ? '数据' : '其他'}
+                            </span>
+                          </td>
+                          <td className="text-sm text-gray-600">
+                            {item.file_size < 1024 ? `${item.file_size} B` :
+                             item.file_size < 1048576 ? `${(item.file_size / 1024).toFixed(1)} KB` :
+                             `${(item.file_size / 1048576).toFixed(1)} MB`}
+                          </td>
+                          <td className="text-sm">{item.download_count}</td>
+                          <td>
+                            <span className={`text-sm ${hoursLeft < 6 ? 'text-red-500 font-medium' : 'text-gray-500'}`}>
+                              {hoursLeft > 0 ? `${hoursLeft}小时后过期` : '已过期'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              onClick={() => handleDownload(item)}
+                              disabled={hoursLeft <= 0}
+                              className={`text-blue-600 hover:underline text-sm ${hoursLeft <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              ⬇ 下载
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
+                <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-sm text-yellow-700">
+                  ⚠️ 交付物将在生成后24小时内自动清理，请及时下载保存。
+                </div>
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-8">暂无交付物</p>
+              <div className="text-center py-12">
+                <div className="text-4xl mb-3">📦</div>
+                <p className="text-gray-500 mb-4">暂无交付物</p>
+                <p className="text-gray-400 text-sm mb-4">AI分身完成工作后，点击"生成交付物"获取代码、文档等交付文件</p>
+                <button
+                  onClick={handleGenerateDeliverables}
+                  disabled={generatingDeliverables}
+                  className="btn btn-primary btn-sm"
+                >
+                  {generatingDeliverables ? '生成中...' : '生成交付物'}
+                </button>
+              </div>
             )}
           </div>
         )}
