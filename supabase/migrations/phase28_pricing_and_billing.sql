@@ -20,8 +20,8 @@ ALTER TABLE tasks
 ALTER TABLE tasks DROP CONSTRAINT IF EXISTS chk_pricing_type;
 ALTER TABLE tasks ADD CONSTRAINT chk_pricing_type CHECK (pricing_type IN ('hourly', 'fixed', 'token'));
 
--- 3. task_messages 表新增 token 统计
-ALTER TABLE task_messages 
+-- 3. messages 表新增 token 统计
+ALTER TABLE messages 
   ADD COLUMN IF NOT EXISTS input_tokens INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS output_tokens INTEGER DEFAULT 0,
   ADD COLUMN IF NOT EXISTS total_tokens INTEGER DEFAULT 0,

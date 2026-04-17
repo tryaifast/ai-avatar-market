@@ -72,20 +72,20 @@ export async function POST(req: NextRequest) {
       attachments: [],
     });
 
-    // 更新 task_messages 的 token 统计
+    // 更新 messages 的 token 统计
     try {
       const { data: lastMsg } = await (DB.db as any)
-        .from('task_messages')
+        .from('messages')
         .select('id')
         .eq('task_id', taskId)
         .eq('role', 'ai')
-        .order('created_at', { ascending: false })
+        .order('timestamp', { ascending: false })
         .limit(1)
         .single();
 
       if (lastMsg) {
         await (DB.db as any)
-          .from('task_messages')
+          .from('messages')
           .update({
             input_tokens: aiResult.usage.inputTokens,
             output_tokens: aiResult.usage.outputTokens,
