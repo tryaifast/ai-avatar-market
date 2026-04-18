@@ -13,7 +13,7 @@ export async function GET(
   try {
     // 1. 验证管理员身份
     const authResult = await verifyAuth(request);
-    if (!authResult.success || authResult.user?.role !== 'admin') {
+    if (!authResult?.success || authResult?.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
