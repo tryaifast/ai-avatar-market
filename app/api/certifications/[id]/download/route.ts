@@ -12,12 +12,12 @@ export async function GET(
 ) {
   try {
     // 1. 验证用户登录
-    const authResult = await verifyAuth(request);
-    if (!authResult.success) {
+    const auth = await verifyAuth(request);
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = authResult.user!.id;
+    const userId = auth.userId;
     const certificationId = params.id;
 
     // 2. 查询认证记录

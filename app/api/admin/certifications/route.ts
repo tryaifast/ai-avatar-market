@@ -3,20 +3,24 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth';
-import { createServiceClient } from '@/lib/supabase/client';
+import { DB } from '@/lib/db/supabase';
 
 export async function GET(request: NextRequest) {
   try {
     // 1. 验证管理员身份
-    const authResult = await verifyAuth(request);
-    if (!authResult.success || authResult.user?.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const currentUser = await verifyAuth(request);
+    if (!currentUser) {
+      return NextResponse.json({ error: '请先登录' }, { status: 401 });
+    }
+
+    // 检查是否为管理员
+    const user = await DB.User.getById(currentUser.userId);
+    if (!user || user.role !== 'admin') {
+      return NextResponse.json({ error: '需要管理员权限' }, { status: 403 });
     }
 
     // 2. 查询所有认证记录
-    const supabase = createServiceClient();
-    const { data: certifications, error } = await (supabase
-      .from('avatar_certifications') as any)
+    const { data: certifications, error } = await (DB.db.from('avatar_certifications') as any)
       .select(`
         *,
         avatar:avatar_id (id, name),

@@ -11,12 +11,12 @@ import { createPayment, generateOrderId } from '@/lib/payment';
 export async function POST(request: NextRequest) {
   try {
     // 1. 验证用户登录
-    const authResult = await verifyAuth(request);
-    if (!authResult.success) {
+    const auth = await verifyAuth(request);
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = authResult.user!.id;
+    const userId = auth.userId;
 
     // 2. 解析请求体
     const body = await request.json();
