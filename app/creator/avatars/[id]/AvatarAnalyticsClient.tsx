@@ -1,9 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Star } from 'lucide-react';
+import { ArrowLeft, Star, Shield, ShieldCheck, Settings, BookOpen } from 'lucide-react';
 
-export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
+interface AvatarAnalyticsClientProps {
+  avatar: any;
+}
+
+export function AvatarAnalyticsClient({ avatar }: AvatarAnalyticsClientProps) {
   if (!avatar) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -28,6 +32,13 @@ export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
     paused: '已暂停',
     rejected: '未通过',
     banned: '已封禁',
+  };
+
+  const certStatusLabel: Record<string, { label: string; color: string }> = {
+    none: { label: '未认证', color: 'bg-gray-100 text-gray-600' },
+    pending: { label: '认证中', color: 'bg-yellow-100 text-yellow-700' },
+    certified: { label: '已认证', color: 'bg-green-100 text-green-700' },
+    expired: { label: '已过期', color: 'bg-red-100 text-red-700' },
   };
 
   return (
@@ -63,6 +74,66 @@ export function AvatarAnalyticsClient({ avatar }: { avatar: any }) {
                 {statusLabel[avatar.status] || avatar.status}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 认证状态 & 操作 */}
+      <div className="card p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {avatar.certification_status === 'certified' ? (
+              <div className="flex items-center gap-2 text-green-600">
+                <ShieldCheck className="w-6 h-6" />
+                <span className="font-semibold">已认证</span>
+              </div>
+            ) : avatar.certification_status === 'pending' ? (
+              <div className="flex items-center gap-2 text-yellow-600">
+                <Shield className="w-6 h-6" />
+                <span className="font-semibold">认证中</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-gray-500">
+                <Shield className="w-6 h-6" />
+                <span>未认证</span>
+              </div>
+            )}
+            <span className="text-sm text-gray-500">
+              {avatar.certification_status === 'certified'
+                ? '知识产权已确认，受平台保护'
+                : avatar.certification_status === 'pending'
+                ? '正在处理中'
+                : '申请认证，确认知识产权归属'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {avatar.certification_status === 'certified' && avatar.certification_id && (
+              <Link
+                href={`/creator/certification/status/${avatar.certification_id}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                查看证书
+              </Link>
+            )}
+            {avatar.certification_status === 'pending' && avatar.certification_id && (
+              <Link
+                href={`/creator/certification/status/${avatar.certification_id}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium"
+              >
+                <Shield className="w-4 h-4" />
+                查看进度
+              </Link>
+            )}
+            {avatar.certification_status === 'none' && (
+              <Link
+                href={`/creator/certification/apply?avatarId=${avatar.id}`}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                <Shield className="w-4 h-4" />
+                申请认证 ¥999
+              </Link>
+            )}
           </div>
         </div>
       </div>
