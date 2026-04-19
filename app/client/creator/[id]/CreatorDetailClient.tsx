@@ -438,10 +438,10 @@ export default function CreatorDetailClient({ creator, avatars }: CreatorDetailC
                 取消
               </button>
               <Link
-                href={`/client/payment?avatarId=${selectedAvatar.id}&creatorId=${creator.id}`}
+                href={`/client/hire/${selectedAvatar.id}`}
                 className="flex-1 btn-primary text-center"
               >
-                确认雇佣
+                查看详情并雇佣
               </Link>
             </div>
           </div>

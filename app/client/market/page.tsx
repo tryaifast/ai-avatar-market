@@ -157,10 +157,10 @@ export default function MarketPage() {
                     )}
                   </div>
                   <Link
-                    href={`/client/hire/${avatar.id}/confirm`}
+                    href={`/client/hire/${avatar.id}`}
                     className="btn-primary text-sm"
                   >
-                    雇佣
+                    查看详情
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </div>
