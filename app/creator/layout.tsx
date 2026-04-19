@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard, Bot, Briefcase, Wallet, MessageSquare, Settings, LogOut, Crown
+  LayoutDashboard, Bot, Briefcase, Wallet, MessageSquare, Settings, LogOut, Crown, ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
@@ -16,6 +16,7 @@ const menuItems = [
   { href: '/creator/earnings', icon: Wallet, label: '收益' },
   { href: '/creator/messages', icon: MessageSquare, label: '消息' },
   { href: '/creator/membership', icon: Crown, label: '会员中心' },
+  { href: '/creator/certifications', icon: ShieldCheck, label: '知识产权认证', badge: 'NEW' },
   { href: '/creator/settings', icon: Settings, label: '设置' },
 ];
 
@@ -53,6 +54,11 @@ export default function CreatorLayout({ children }: { children: React.ReactNode 
                 >
                   <item.icon className="w-5 h-5" />
                   {item.label}
+                  {'badge' in item && item.badge && (
+                    <span className="ml-auto px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded leading-none">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>

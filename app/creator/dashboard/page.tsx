@@ -259,6 +259,29 @@ export default function CreatorDashboard() {
             </div>
           </div>
 
+          {/* 知识产权认证推广卡片 */}
+          <div className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                  知识产权认证服务
+                  <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded leading-none">NEW</span>
+                </h3>
+                <p className="text-sm text-gray-500">为你的AI分身申请知识产权认证，确认归属、区块链存证、专属标识</p>
+              </div>
+            </div>
+            <Link
+              href="/creator/certifications"
+              className="inline-flex items-center gap-1 px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium hover:bg-amber-600 transition-colors flex-shrink-0"
+            >
+              了解详情
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
           {/* Pending Reviews */}
           {pendingTasks.length > 0 && (
             <div className="mb-8">

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { 
   Crown, Check, X, ChevronLeft, Sparkles, Shield, 
-  Loader2, CheckCircle, ArrowRight, Star, ExternalLink, Clock
+  Loader2, CheckCircle, ArrowRight, Star, ExternalLink, Clock, ShieldCheck
 } from 'lucide-react';
 import { useAuthStore, authFetch } from '@/lib/store';
 import { MEMBERSHIP_LABELS, AVATAR_LIMITS, MEMBERSHIP_PRICES, MEMBERSHIP_FEATURES } from '@/lib/constants';
@@ -336,6 +336,66 @@ export default function MembershipPage() {
           ) : (
             <div className="text-center text-sm text-gray-500 py-2">已开通</div>
           )}
+        </div>
+      </div>
+
+      {/* 知识产权认证服务 */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-6 mb-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-200/30 rounded-full -mr-8 -mt-8" />
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <ShieldCheck className="w-6 h-6 text-amber-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  AI分身知识产权认证
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded leading-none">NEW</span>
+                </h3>
+                <p className="text-sm text-gray-600">确认分身知识产权归属，保护创作者权益</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-amber-600">¥999</div>
+              <div className="text-xs text-gray-500">/每个分身</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-800">知识产权证书</p>
+                <p className="text-xs text-gray-500">PDF电子证书，确认分身归属</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-800">区块链存证</p>
+                <p className="text-xs text-gray-500">不可篡改的链上存证记录</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-800">已认证标识</p>
+                <p className="text-xs text-gray-500">分身展示专属认证徽章</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/creator/certifications"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white rounded-lg font-medium hover:bg-amber-600 transition-colors text-sm"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              了解详情
+            </Link>
+            <span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+              🔒 政府公证服务即将开通
+            </span>
+          </div>
         </div>
       </div>
 
