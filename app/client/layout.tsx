@@ -2,38 +2,29 @@
 
 import { useAuthHydrated } from '@/lib/store';
 import Link from 'next/link';
-import { Bot, Bell, MessageSquare, User, LogOut } from 'lucide-react';
-import { useAuthStore, authFetch } from '@/lib/store';
-import { useState, useEffect } from 'react';
+import { Bot, User, LogOut, ChevronDown, Briefcase, Sparkles } from 'lucide-react';
+import { useAuthStore } from '@/lib/store';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 // 客户端布局 - 带认证保护的统一布局
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const { isHydrated, isAuthenticated, user } = useAuthHydrated();
   const logout = useAuthStore((s) => s.logout);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // 获取未读消息数量
+  // 点击外部关闭下拉菜单
   useEffect(() => {
-    if (!isHydrated || !isAuthenticated || !user) return;
-
-    const fetchUnreadCount = async () => {
-      try {
-        const res = await authFetch('/api/messages');
-        const data = await res.json();
-        if (data.success) {
-          setUnreadCount(data.unreadCount || 0);
-        }
-      } catch (error) {
-        // 静默处理，不影响用户体验
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
       }
-    };
-
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 60000);
-    return () => clearInterval(interval);
-  }, [isHydrated, isAuthenticated, user]);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // 等待 hydration 完成
   if (!isHydrated) {
@@ -60,46 +51,81 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               </Link>
               <nav className="flex items-center gap-4 ml-6">
                 <Link href="/client/market" className="text-sm text-gray-600 hover:text-gray-900">分身市场</Link>
-                {isAuthenticated && (
-                  <>
-                    <Link href="/client/hire" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                      雇佣者中心
-                    </Link>
-                    <Link href="/client/messages" className="text-sm text-gray-600 hover:text-gray-900 relative">
-                      消息
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-2 -right-4 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                          {unreadCount > 9 ? '9+' : unreadCount}
-                        </span>
-                      )}
-                    </Link>
-                  </>
-                )}
                 <Link href="/client/feedback" className="text-sm text-gray-600 hover:text-gray-900">反馈</Link>
               </nav>
             </div>
 
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
-                <Link href="/creator/dashboard" className="text-sm text-blue-600 hover:text-blue-800">
-                  创作者中心
-                </Link>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="w-3.5 h-3.5 text-gray-600" />
-                  </div>
-                  <span className="text-sm text-gray-700">{user.name}</span>
+                {/* 用户下拉菜单 */}
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="w-7 h-7 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-medium">{user.name?.[0] || <User className="w-3.5 h-3.5" />}</span>
+                    </div>
+                    <span className="text-sm text-gray-700 hidden sm:block">{user.name}</span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* 下拉菜单 */}
+                  {showDropdown && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border py-2 z-50">
+                      <div className="px-4 py-2 border-b">
+                        <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                        <p className="text-xs text-gray-500">{user.email}</p>
+                      </div>
+                      
+                      <div className="py-1">
+                        <p className="px-4 py-1.5 text-xs font-medium text-gray-400 uppercase">切换身份</p>
+                        
+                        <Link
+                          href="/client/hire"
+                          onClick={() => setShowDropdown(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <Briefcase className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">雇佣者中心</p>
+                            <p className="text-xs text-gray-500">管理订单和分身</p>
+                          </div>
+                        </Link>
+
+                        <Link
+                          href="/creator/dashboard"
+                          onClick={() => setShowDropdown(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <Sparkles className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">创作者中心</p>
+                            <p className="text-xs text-gray-500">管理分身和收益</p>
+                          </div>
+                        </Link>
+                      </div>
+
+                      <div className="border-t py-1 mt-1">
+                        <button
+                          onClick={() => {
+                            logout();
+                            setShowDropdown(false);
+                            router.push('/landing');
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          退出登录
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => {
-                    logout();
-                    router.push('/landing');
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                  title="退出登录"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
