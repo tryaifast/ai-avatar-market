@@ -61,14 +61,19 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <nav className="flex items-center gap-4 ml-6">
                 <Link href="/client/market" className="text-sm text-gray-600 hover:text-gray-900">分身市场</Link>
                 {isAuthenticated && (
-                  <Link href="/client/messages" className="text-sm text-gray-600 hover:text-gray-900 relative">
-                    消息
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-2 -right-4 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </Link>
+                  <>
+                    <Link href="/client/hire" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                      雇佣者中心
+                    </Link>
+                    <Link href="/client/messages" className="text-sm text-gray-600 hover:text-gray-900 relative">
+                      消息
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-2 -right-4 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  </>
                 )}
                 <Link href="/client/feedback" className="text-sm text-gray-600 hover:text-gray-900">反馈</Link>
               </nav>
