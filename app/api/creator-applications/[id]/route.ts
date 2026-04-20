@@ -44,11 +44,19 @@ export async function PUT(
       );
     }
 
-    // 如果审核通过，更新用户角色为creator + onboarding_status
+    // 如果审核通过，更新用户角色为creator + onboarding_status + 同步申请数据
     if (status === 'approved' && application.user_id) {
       await DB.User.update(application.user_id, {
         role: 'creator',
         onboarding_status: 'approved',
+        // 同步申请数据到 users 表，供创作者主页展示
+        bio: application.bio || undefined,
+        identity: application.skills || undefined,
+        profession: (application as any).profession || undefined,
+        company: (application as any).company || undefined,
+        experienceYears: (application as any).experience_years || undefined,
+        resumeUrl: (application as any).resume_url || undefined,
+        experiences: (application as any).experiences || undefined,
       } as any);
     }
 

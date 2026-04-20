@@ -66,6 +66,11 @@ export const UserDB = {
     if ((updates as any).membershipType !== undefined) dbUpdates.membership_type = (updates as any).membershipType;
     if ((updates as any).membershipExpiresAt !== undefined) dbUpdates.membership_expires_at = (updates as any).membershipExpiresAt;
     if ((updates as any).onboardingStatus !== undefined) dbUpdates.onboarding_status = (updates as any).onboardingStatus;
+    if ((updates as any).profession !== undefined) dbUpdates.profession = (updates as any).profession;
+    if ((updates as any).company !== undefined) dbUpdates.company = (updates as any).company;
+    if ((updates as any).experienceYears !== undefined) dbUpdates.experience_years = (updates as any).experienceYears;
+    if ((updates as any).resumeUrl !== undefined) dbUpdates.resume_url = (updates as any).resumeUrl;
+    if ((updates as any).experiences !== undefined) dbUpdates.experiences = (updates as any).experiences;
 
     const { data, error } = await db.from('users').update(dbUpdates).eq('id', id).select().single();
     if (error) {
