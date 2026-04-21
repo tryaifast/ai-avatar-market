@@ -198,8 +198,11 @@ export default function HireConfirmClient({ avatarId }: { avatarId: string }) {
   }
 
   const avatar = currentAvatar;
-  const hourlyPrice = (avatar as any).pricePerHour || (avatar as any).pricing?.perTask?.min || 200;
-  const fixedPrice = (avatar as any).pricePerTask || (avatar as any).pricing?.subscription?.monthly || 5000;
+  // 价格数据库以"分"存储，显示时转为"元"
+  const hourlyPriceCents = (avatar as any).pricePerHour || (avatar as any).pricing?.perTask?.min || 20000;
+  const fixedPriceCents = (avatar as any).pricePerTask || (avatar as any).pricing?.subscription?.monthly || 500000;
+  const hourlyPrice = Math.round(hourlyPriceCents / 100); // 转为元显示
+  const fixedPrice = Math.round(fixedPriceCents / 100);   // 转为元显示
   const baseAmount = plan === 'hourly' ? hourlyPrice * hours : fixedPrice;
   const platformFee = Math.round(baseAmount * 0.1);
   const totalAmount = baseAmount + platformFee;
